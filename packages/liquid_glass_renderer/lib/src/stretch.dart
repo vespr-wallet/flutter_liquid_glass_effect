@@ -6,6 +6,40 @@ import 'package:liquid_glass_renderer/src/internal/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
 
+/// Provides the current transform state applied by [LiquidStretch].
+///
+/// This is used internally to compensate for transform when
+/// calculating refraction filter coordinates.
+class LiquidStretchScale extends InheritedWidget {
+  /// Creates a [LiquidStretchScale] with the given parameters.
+  const LiquidStretchScale({
+    required this.scale,
+    required this.isTransforming,
+    required super.child,
+    super.key,
+  });
+
+  /// The current scale factor (1.0 = no scale).
+  final double scale;
+
+  /// Whether any transform is currently being applied (scale or stretch).
+  final bool isTransforming;
+
+  /// Returns whether any transform is active from the nearest
+  /// [LiquidStretchScale] ancestor.
+  static bool isCurrentlyTransforming(BuildContext context) {
+    final widget =
+        context.dependOnInheritedWidgetOfExactType<LiquidStretchScale>();
+    return widget?.isTransforming ?? false;
+  }
+
+  @override
+  bool updateShouldNotify(LiquidStretchScale oldWidget) {
+    return scale != oldWidget.scale ||
+        isTransforming != oldWidget.isTransforming;
+  }
+}
+
 /// A widget that provides a squash and stretch effect to its child based on
 /// user interaction.
 ///
@@ -80,29 +114,36 @@ class LiquidStretch extends StatelessWidget {
 
     return GlassDragBuilder(
       behavior: hitTestBehavior,
-      builder: (context, value, child) {
-        final scale = value == null ? 1.0 : interactionScale;
+      builder: (context, dragValue, child) {
+        final scale = dragValue == null ? 1.0 : interactionScale;
         return SingleMotionBuilder(
           value: scale,
           motion: const Motion.smoothSpring(
             duration: Duration(milliseconds: 300),
             snapToEnd: true,
           ),
-          builder: (context, value, child) => Transform.scale(
-            scale: value,
-            child: child,
-          ),
-          child: MotionBuilder(
-            value: value?.withResistance(resistance) ?? Offset.zero,
-            motion: value == null
+          builder: (context, animatedScale, _) => MotionBuilder(
+            value: dragValue?.withResistance(resistance) ?? Offset.zero,
+            motion: dragValue == null
                 ? const Motion.bouncySpring(snapToEnd: true)
                 : const Motion.interactiveSpring(snapToEnd: true),
             converter: const OffsetMotionConverter(),
-            builder: (context, value, child) => RawLiquidStretch(
-              stretchPixels: value * stretch,
-              child: child,
-            ),
-            child: child,
+            builder: (context, stretchOffset, _) {
+              // Transform is active if scale != 1 OR stretch != zero
+              final isTransforming =
+                  animatedScale != 1.0 || stretchOffset != Offset.zero;
+              return LiquidStretchScale(
+                scale: animatedScale,
+                isTransforming: isTransforming,
+                child: Transform.scale(
+                  scale: animatedScale,
+                  child: RawLiquidStretch(
+                    stretchPixels: stretchOffset * stretch,
+                    child: child,
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

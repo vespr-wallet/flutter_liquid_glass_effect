@@ -56,6 +56,9 @@ class FakeGlass extends StatelessWidget {
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
+    // Check if LiquidStretch is currently applying any transform
+    final isTransforming = LiquidStretchScale.isCurrentlyTransforming(context);
+
     // If we are in a layer, we accept that layer's backdrop key.
     final backdropKey =
         this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
@@ -66,6 +69,7 @@ class FakeGlass extends StatelessWidget {
         settings: settings,
         backdropKey: backdropKey,
         frosted: resolvedFrosted,
+        isTransforming: isTransforming,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(
@@ -83,6 +87,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.shape,
     required super.child,
     required this.frosted,
+    required this.isTransforming,
     this.backdropKey,
     this.settings = const LiquidGlassSettings(),
     super.key,
@@ -96,6 +101,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final bool frosted;
 
+  final bool isTransforming;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderFakeGlass(
@@ -103,6 +110,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       settings: settings,
       backdropKey: backdropKey,
       frosted: frosted,
+      isTransforming: isTransforming,
     );
   }
 
@@ -114,7 +122,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..shape = shape
         ..settings = settings
         ..backdropKey = backdropKey
-        ..frosted = frosted;
+        ..frosted = frosted
+        ..isTransforming = isTransforming;
     }
   }
 }
@@ -125,17 +134,18 @@ class _RenderFakeGlass extends RenderProxyBox {
     required LiquidGlassSettings settings,
     required BackdropKey? backdropKey,
     required bool frosted,
+    required bool isTransforming,
   })  : _shape = shape,
         _settings = settings,
         _backdropKey = backdropKey,
-        _frosted = frosted;
+        _frosted = frosted,
+        _isTransforming = isTransforming;
 
   LiquidShape _shape;
   LiquidShape get shape => _shape;
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
-    _invalidateFilterCache();
     markNeedsPaint();
   }
 
@@ -144,7 +154,6 @@ class _RenderFakeGlass extends RenderProxyBox {
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
-    _invalidateFilterCache();
     markNeedsPaint();
   }
 
@@ -161,18 +170,20 @@ class _RenderFakeGlass extends RenderProxyBox {
   set frosted(bool value) {
     if (_frosted == value) return;
     _frosted = value;
-    _invalidateFilterCache();
     markNeedsPaint();
   }
 
-  // Cached filter to avoid recreating every frame
-  ui.ImageFilter? _cachedFilter;
-  Size? _cachedFilterSize;
-
-  void _invalidateFilterCache() {
-    _cachedFilter = null;
-    _cachedFilterSize = null;
+  bool _isTransforming;
+  bool get isTransforming => _isTransforming;
+  set isTransforming(bool value) {
+    if (_isTransforming == value) return;
+    _isTransforming = value;
+    markNeedsPaint();
   }
+
+  // Note: Filter caching was removed due to visual glitches.
+  // The BackdropFilterLayer appears to need fresh filter instances
+  // to properly apply effects when the backdrop changes.
 
   @override
   bool get alwaysNeedsCompositing =>
@@ -189,24 +200,16 @@ class _RenderFakeGlass extends RenderProxyBox {
     // Check if we need any backdrop filter at all
     final needsFilter = _frosted || settings.fakeGlassRefraction > 0;
     if (!needsFilter) {
-      _paintColor(context.canvas, path);
-      _paintSpecular(context.canvas, path, bounds);
+      _paintGlassEffects(context.canvas, path, bounds);
       super.paint(context, offset);
       return;
     }
 
-    // Rebuild filter cache if size changed (refraction depends on center)
-    if (_cachedFilterSize != size) {
-      _invalidateFilterCache();
-    }
-
-    // Build and cache the combined filter
-    final combinedFilter = _cachedFilter ??= _buildCombinedFilter(bounds);
-    _cachedFilterSize = size;
+    // Build the filter fresh each frame to avoid stale cache issues
+    final combinedFilter = _buildCombinedFilter(bounds);
 
     if (combinedFilter == null) {
-      _paintColor(context.canvas, path);
-      _paintSpecular(context.canvas, path, bounds);
+      _paintGlassEffects(context.canvas, path, bounds);
       super.paint(context, offset);
       return;
     }
@@ -219,25 +222,41 @@ class _RenderFakeGlass extends RenderProxyBox {
     context.pushLayer(
       layer,
       (context, offset) {
-        // If we are on Skia, we need to avoid the raster cache.
-        if (!ui.ImageFilter.isShaderFilterSupported) {
-          context.setWillChangeHint();
-        }
-        _paintColor(context.canvas, path);
-        _paintSpecular(context.canvas, path, offset & size);
+        // Always disable raster cache when using refraction filter
+        // to ensure the filter updates properly during transforms
+        context.setWillChangeHint();
+        _paintGlassEffects(context.canvas, path, offset & size);
         super.paint(context, offset);
       },
       offset,
     );
   }
 
+  /// Paints all glass visual effects (color, depth, shadow, specular).
+  void _paintGlassEffects(Canvas canvas, Path path, Rect bounds) {
+    _paintColor(canvas, path);
+    _paintDepthGradient(canvas, path, bounds);
+    _paintInnerEdgeShadow(canvas, path, bounds);
+    _paintSpecular(canvas, path, bounds);
+  }
+
   /// Builds the combined filter based on current settings.
   /// Returns null if no filter is needed.
   ui.ImageFilter? _buildCombinedFilter(Rect bounds) {
     // Create magnification filter for fake refraction effect
-    final refraction = settings.fakeGlassRefraction;
+    // Apply frosted multiplier when frosted for more pronounced effect
+    final baseRefraction = settings.fakeGlassRefraction;
+    final refraction = _frosted
+        ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
+        : baseRefraction;
+    // Compensate for LiquidStretch transform.
+    // - When not transforming (static): bounds.center works
+    // - When transforming (scale or stretch active): localCenter works
+    final localCenter = Offset(size.width / 2, size.height / 2);
+    final center = _isTransforming ? localCenter : bounds.center;
+
     final refractionFilter = refraction > 0
-        ? _createRefractionFilter(bounds.center, refraction)
+        ? _createRefractionFilter(center, refraction)
         : null;
 
     // Create saturation filter if needed
@@ -288,7 +307,7 @@ class _RenderFakeGlass extends RenderProxyBox {
   ///
   /// The [refraction] value controls the strength (0.02 = ~2% magnification).
   ui.ImageFilter _createRefractionFilter(Offset center, double refraction) {
-    // Scale < 1 magnifies because we sample from coordinates closer to center
+    // Scale around center point to create magnification effect
     final scale = 1.0 - refraction;
     // ignore: deprecated_member_use
     final matrix = Matrix4.identity()
@@ -420,5 +439,66 @@ class _RenderFakeGlass extends RenderProxyBox {
       ..strokeWidth = (settings.effectiveThickness / 10)
       ..blendMode = BlendMode.overlay;
     canvas.drawPath(path, overlay);
+  }
+
+  /// Paints an inner shadow along the edges to give the glass depth.
+  ///
+  /// This creates the illusion of thickness by darkening the inner edges.
+  void _paintInnerEdgeShadow(Canvas canvas, Path path, Rect bounds) {
+    final thickness = settings.effectiveThickness;
+    if (thickness <= 0) return;
+
+    // Inner shadow - darker at edges, transparent toward center
+    final shadowWidth = (thickness / 3).clamp(2.0, 8.0);
+    final shadowAlpha = (thickness / 100).clamp(0.05, 0.15);
+
+    final innerShadow = Paint()
+      ..color = Colors.black.withValues(alpha: shadowAlpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = shadowWidth
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, shadowWidth / 2);
+
+    canvas.drawPath(path, innerShadow);
+  }
+
+  /// Paints a subtle depth gradient to enhance the 3D appearance.
+  ///
+  /// Creates a gradient from top-left (lighter) to bottom-right (darker)
+  /// based on the light angle to simulate light passing through glass.
+  void _paintDepthGradient(Canvas canvas, Path path, Rect bounds) {
+    final thickness = settings.effectiveThickness;
+    if (thickness <= 0) return;
+
+    final lightIntensity = settings.effectiveLightIntensity.clamp(0.0, 1.0);
+    final gradientAlpha = (lightIntensity * 0.1).clamp(0.0, 0.08);
+
+    if (gradientAlpha <= 0) return;
+
+    final rad = settings.lightAngle;
+    final x = math.cos(rad);
+    final y = math.sin(rad);
+
+    // Create a gradient that follows the light direction
+    final gradient = LinearGradient(
+      colors: [
+        Colors.white.withValues(alpha: gradientAlpha),
+        Colors.transparent,
+        Colors.black.withValues(alpha: gradientAlpha * 0.5),
+      ],
+      stops: const [0.0, 0.5, 1.0],
+      begin: Alignment(x, y),
+      end: Alignment(-x, -y),
+    ).createShader(bounds);
+
+    final paint = Paint()
+      ..shader = gradient
+      ..style = PaintingStyle.fill
+      ..blendMode = BlendMode.softLight;
+
+    canvas
+      ..save()
+      ..clipPath(path)
+      ..drawRect(bounds, paint)
+      ..restore();
   }
 }

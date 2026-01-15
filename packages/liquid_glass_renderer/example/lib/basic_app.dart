@@ -16,8 +16,6 @@ final settingsNotifier = ValueNotifier(
   LiquidGlassSettings(glassColor: Colors.white.withValues(alpha: 0.2)),
 );
 
-final blendNotifier = ValueNotifier(10.0);
-
 class BasicApp extends HookWidget {
   const BasicApp({super.key});
 
@@ -31,7 +29,6 @@ class BasicApp extends HookWidget {
     return GestureDetector(
       onTap: () {
         SettingsSheet(
-          blendNotifier: blendNotifier,
           settingsNotifier: settingsNotifier,
           lightAngleAnimation: light,
         ).show(context);
@@ -74,7 +71,6 @@ class BasicApp extends HookWidget {
                 listenable: Listenable.merge([
                   settingsNotifier,
                   light,
-                  blendNotifier,
                 ]),
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
@@ -85,22 +81,39 @@ class BasicApp extends HookWidget {
                   return LiquidGlassLayer(
                     fake: fake.value,
                     settings: settings.copyWith(lightAngle: light.value),
-                    child: LiquidGlassBlendGroup(
-                      blend: blendNotifier.value,
-                      child: Column(
-                        spacing: 16,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 16,
-                            children: [
-                              LiquidStretch(
-                                child: LiquidGlass.grouped(
-                                  shape: LiquidRoundedSuperellipse(
-                                    borderRadius: 20,
+                    child: Column(
+                      spacing: 16,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 16,
+                          children: [
+                            LiquidStretch(
+                              child: LiquidGlass(
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: 20,
+                                ),
+                                child: GlassGlow(
+                                  child: SizedBox.square(
+                                    dimension: 100,
+                                    child: Center(
+                                      child: fake.value
+                                          ? Text('FAKE')
+                                          : Text('REAL'),
+                                    ),
                                   ),
-                                  child: GlassGlow(
+                                ),
+                              ),
+                            ),
+                            LiquidStretch(
+                              child: LiquidGlass(
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: 20,
+                                ),
+                                child: GlassGlow(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
                                     child: SizedBox.square(
                                       dimension: 100,
                                       child: Center(
@@ -112,51 +125,31 @@ class BasicApp extends HookWidget {
                                   ),
                                 ),
                               ),
-                              LiquidStretch(
-                                child: LiquidGlass.grouped(
-                                  shape: LiquidRoundedSuperellipse(
-                                    borderRadius: 20,
-                                  ),
-                                  child: GlassGlow(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      child: SizedBox.square(
-                                        dimension: 100,
-                                        child: Center(
-                                          child: fake.value
-                                              ? Text('FAKE')
-                                              : Text('REAL'),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          LiquidStretch(
-                            child: LiquidGlass.grouped(
-                              shape: LiquidRoundedSuperellipse(
-                                borderRadius: 9000,
-                              ),
-                              child: GlassGlow(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  child: SizedBox(
-                                    width: 400,
-                                    height: 64,
-                                    child: Center(
-                                      child: fake.value
-                                          ? Text('FAKE')
-                                          : Text('REAL'),
-                                    ),
+                            ),
+                          ],
+                        ),
+                        LiquidStretch(
+                          child: LiquidGlass(
+                            shape: LiquidRoundedSuperellipse(
+                              borderRadius: 9000,
+                            ),
+                            child: GlassGlow(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                child: SizedBox(
+                                  width: 400,
+                                  height: 64,
+                                  child: Center(
+                                    child: fake.value
+                                        ? Text('FAKE')
+                                        : Text('REAL'),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },

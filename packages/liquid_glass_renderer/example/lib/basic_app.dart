@@ -68,15 +68,13 @@ class BasicApp extends HookWidget {
             ),
             Center(
               child: ListenableBuilder(
-                listenable: Listenable.merge([
-                  settingsNotifier,
-                  light,
-                ]),
+                listenable: Listenable.merge([settingsNotifier, light]),
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
                     glassColor: CupertinoTheme.of(
                       context,
                     ).barBackgroundColor.withValues(alpha: 0.2),
+                    fakeGlassRefraction: 0.08,
                   );
                   return LiquidGlassLayer(
                     fake: fake.value,
@@ -91,6 +89,7 @@ class BasicApp extends HookWidget {
                           children: [
                             LiquidStretch(
                               child: LiquidGlass(
+                                frosted: false,
                                 shape: LiquidRoundedSuperellipse(
                                   borderRadius: 20,
                                 ),
@@ -99,8 +98,14 @@ class BasicApp extends HookWidget {
                                     dimension: 100,
                                     child: Center(
                                       child: fake.value
-                                          ? Text('FAKE')
-                                          : Text('REAL'),
+                                          ? Text(
+                                              'FAKE no frost',
+                                              textAlign: TextAlign.center,
+                                            )
+                                          : Text(
+                                              'REAL no frost',
+                                              textAlign: TextAlign.center,
+                                            ),
                                     ),
                                   ),
                                 ),

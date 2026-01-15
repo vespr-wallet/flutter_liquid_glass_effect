@@ -20,6 +20,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
     this.frosted = true,
+    this.fakeGlassRefraction = 0.06,
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -35,6 +36,7 @@ class LiquidGlassSettings with EquatableMixin {
     double lightAngle = 0.5 * pi,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
     bool frosted = true,
+    double fakeGlassRefraction = 0.02,
   }) : this(
           visibility: visibility,
           refractiveIndex: 1 + (refraction / 100) * 0.2,
@@ -47,6 +49,7 @@ class LiquidGlassSettings with EquatableMixin {
           saturation: 1.5,
           glassColor: glassColor,
           frosted: frosted,
+          fakeGlassRefraction: fakeGlassRefraction,
         );
 
   /// A minimal glass effect with no lighting or chromatic aberration.
@@ -61,6 +64,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.15,
     this.saturation = 1.2,
     this.frosted = true,
+    this.fakeGlassRefraction = 0.02,
   })  : chromaticAberration = 0,
         lightAngle = 0,
         lightIntensity = 0,
@@ -78,6 +82,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.1,
     this.saturation = 1.3,
     this.frosted = true,
+    this.fakeGlassRefraction = 0.02,
   })  : chromaticAberration = 0.005,
         lightAngle = 0.5 * pi,
         lightIntensity = 0.3,
@@ -179,6 +184,18 @@ class LiquidGlassSettings with EquatableMixin {
   /// Defaults to true.
   final bool frosted;
 
+  /// The strength of the fake refraction effect used by [FakeGlass].
+  ///
+  /// This creates a subtle magnification effect to simulate refraction when
+  /// custom shaders are not available (non-Impeller devices).
+  ///
+  /// A value of 0.02 means ~2% magnification. Set to 0 to disable.
+  /// This has no effect on [LiquidGlass] which uses real shader-based
+  /// refraction.
+  ///
+  /// Defaults to 0.02.
+  final double fakeGlassRefraction;
+
   /// Creates a new [LiquidGlassSettings] with the given settings.
   LiquidGlassSettings copyWith({
     double? visibility,
@@ -193,6 +210,7 @@ class LiquidGlassSettings with EquatableMixin {
     double? refractiveIndex,
     double? saturation,
     bool? frosted,
+    double? fakeGlassRefraction,
   }) =>
       LiquidGlassSettings(
         visibility: visibility ?? this.visibility,
@@ -206,6 +224,7 @@ class LiquidGlassSettings with EquatableMixin {
         refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
         frosted: frosted ?? this.frosted,
+        fakeGlassRefraction: fakeGlassRefraction ?? this.fakeGlassRefraction,
       );
 
   @override
@@ -221,5 +240,6 @@ class LiquidGlassSettings with EquatableMixin {
         refractiveIndex,
         saturation,
         frosted,
+        fakeGlassRefraction,
       ];
 }

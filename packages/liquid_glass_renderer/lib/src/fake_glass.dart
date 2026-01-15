@@ -17,6 +17,7 @@ class FakeGlass extends StatelessWidget {
     required this.shape,
     required this.child,
     LiquidGlassSettings this.settings = const LiquidGlassSettings(),
+    this.frosted,
     super.key,
   });
 
@@ -25,6 +26,7 @@ class FakeGlass extends StatelessWidget {
   const FakeGlass.inLayer({
     required this.shape,
     required this.child,
+    this.frosted,
     super.key,
   }) : settings = null;
 
@@ -37,12 +39,22 @@ class FakeGlass extends StatelessWidget {
   /// `refractiveIndex`, since there is no actual refraction happening.
   final LiquidGlassSettings? settings;
 
+  /// Whether this glass shape should apply backdrop blur (frosted).
+  ///
+  /// When true, the background behind this shape will be blurred.
+  /// When false, only color tinting and specular highlights are applied.
+  ///
+  /// If null, uses the default from [LiquidGlassSettings.frosted].
+  final bool? frosted;
+
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final settings = this.settings ?? LiquidGlassSettings.of(context);
+    // Resolve frosted: use widget value if provided, otherwise use settings
+    final resolvedFrosted = frosted ?? settings.frosted;
 
     // If we are in a layer, we accept that layer's backdrop key.
     final backdropKey =
@@ -53,6 +65,7 @@ class FakeGlass extends StatelessWidget {
         shape: shape,
         settings: settings,
         backdropKey: backdropKey,
+        frosted: resolvedFrosted,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(
@@ -69,6 +82,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   const RawFakeGlass({
     required this.shape,
     required super.child,
+    required this.frosted,
     this.backdropKey,
     this.settings = const LiquidGlassSettings(),
     super.key,
@@ -80,12 +94,15 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final BackdropKey? backdropKey;
 
+  final bool frosted;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderFakeGlass(
       shape: shape,
       settings: settings,
       backdropKey: backdropKey,
+      frosted: frosted,
     );
   }
 
@@ -96,7 +113,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       renderObject
         ..shape = shape
         ..settings = settings
-        .._backdropKey = backdropKey;
+        ..backdropKey = backdropKey
+        ..frosted = frosted;
     }
   }
 }
@@ -106,15 +124,18 @@ class _RenderFakeGlass extends RenderProxyBox {
     required LiquidShape shape,
     required LiquidGlassSettings settings,
     required BackdropKey? backdropKey,
+    required bool frosted,
   })  : _shape = shape,
         _settings = settings,
-        _backdropKey = backdropKey;
+        _backdropKey = backdropKey,
+        _frosted = frosted;
 
   LiquidShape _shape;
   LiquidShape get shape => _shape;
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
+    _invalidateFilterCache();
     markNeedsPaint();
   }
 
@@ -123,6 +144,7 @@ class _RenderFakeGlass extends RenderProxyBox {
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
+    _invalidateFilterCache();
     markNeedsPaint();
   }
 
@@ -134,34 +156,60 @@ class _RenderFakeGlass extends RenderProxyBox {
     markNeedsPaint();
   }
 
+  bool _frosted;
+  bool get frosted => _frosted;
+  set frosted(bool value) {
+    if (_frosted == value) return;
+    _frosted = value;
+    _invalidateFilterCache();
+    markNeedsPaint();
+  }
+
+  // Cached filter to avoid recreating every frame
+  ui.ImageFilter? _cachedFilter;
+  Size? _cachedFilterSize;
+
+  void _invalidateFilterCache() {
+    _cachedFilter = null;
+    _cachedFilterSize = null;
+  }
+
   @override
-  bool get alwaysNeedsCompositing => true;
+  bool get alwaysNeedsCompositing =>
+      _frosted || settings.fakeGlassRefraction > 0;
 
   @override
   BackdropFilterLayer? get layer => super.layer as BackdropFilterLayer?;
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    // Create saturation filter if needed
-    final ui.ImageFilter? saturationFilter = settings.effectiveSaturation != 1.0
-        ? ui.ColorFilter.matrix(
-            _createSaturationMatrix(settings.effectiveSaturation),
-          )
-        : null;
+    final path = shape.getOuterPath(offset & size);
+    final bounds = offset & size;
 
-    final blurFilter = ui.ImageFilter.blur(
-      sigmaX: settings.effectiveBlur,
-      sigmaY: settings.effectiveBlur,
-      tileMode: TileMode.mirror,
-    );
+    // Check if we need any backdrop filter at all
+    final needsFilter = _frosted || settings.fakeGlassRefraction > 0;
+    if (!needsFilter) {
+      _paintColor(context.canvas, path);
+      _paintSpecular(context.canvas, path, bounds);
+      super.paint(context, offset);
+      return;
+    }
 
-    // Combine blur and saturation filters
-    final combinedFilter = saturationFilter != null
-        ? ui.ImageFilter.compose(
-            inner: saturationFilter,
-            outer: blurFilter,
-          )
-        : blurFilter;
+    // Rebuild filter cache if size changed (refraction depends on center)
+    if (_cachedFilterSize != size) {
+      _invalidateFilterCache();
+    }
+
+    // Build and cache the combined filter
+    final combinedFilter = _cachedFilter ??= _buildCombinedFilter(bounds);
+    _cachedFilterSize = size;
+
+    if (combinedFilter == null) {
+      _paintColor(context.canvas, path);
+      _paintSpecular(context.canvas, path, bounds);
+      super.paint(context, offset);
+      return;
+    }
 
     final layer = (this.layer ??= BackdropFilterLayer())
       ..filter = combinedFilter
@@ -175,13 +223,83 @@ class _RenderFakeGlass extends RenderProxyBox {
         if (!ui.ImageFilter.isShaderFilterSupported) {
           context.setWillChangeHint();
         }
-        final path = shape.getOuterPath(offset & size);
         _paintColor(context.canvas, path);
         _paintSpecular(context.canvas, path, offset & size);
         super.paint(context, offset);
       },
       offset,
     );
+  }
+
+  /// Builds the combined filter based on current settings.
+  /// Returns null if no filter is needed.
+  ui.ImageFilter? _buildCombinedFilter(Rect bounds) {
+    // Create magnification filter for fake refraction effect
+    final refraction = settings.fakeGlassRefraction;
+    final refractionFilter = refraction > 0
+        ? _createRefractionFilter(bounds.center, refraction)
+        : null;
+
+    // Create saturation filter if needed
+    final saturationFilter = settings.effectiveSaturation != 1.0
+        ? ui.ColorFilter.matrix(
+            _createSaturationMatrix(settings.effectiveSaturation),
+          )
+        : null;
+
+    ui.ImageFilter? combinedFilter;
+
+    if (_frosted) {
+      final blurFilter = ui.ImageFilter.blur(
+        sigmaX: settings.effectiveBlur,
+        sigmaY: settings.effectiveBlur,
+        tileMode: TileMode.mirror,
+      );
+
+      // Compose: refraction -> saturation -> blur
+      combinedFilter = blurFilter;
+      if (saturationFilter != null) {
+        combinedFilter = ui.ImageFilter.compose(
+          inner: saturationFilter,
+          outer: combinedFilter,
+        );
+      }
+      if (refractionFilter != null) {
+        combinedFilter = ui.ImageFilter.compose(
+          inner: refractionFilter,
+          outer: combinedFilter,
+        );
+      }
+    } else {
+      // Non-frosted: only refraction (and optionally saturation)
+      combinedFilter = refractionFilter;
+      if (saturationFilter != null && combinedFilter != null) {
+        combinedFilter = ui.ImageFilter.compose(
+          inner: saturationFilter,
+          outer: combinedFilter,
+        );
+      }
+    }
+
+    return combinedFilter;
+  }
+
+  /// Creates a magnification filter to simulate refraction.
+  ///
+  /// The [refraction] value controls the strength (0.02 = ~2% magnification).
+  ui.ImageFilter _createRefractionFilter(Offset center, double refraction) {
+    // Scale < 1 magnifies because we sample from coordinates closer to center
+    final scale = 1.0 - refraction;
+    // ignore: deprecated_member_use
+    final matrix = Matrix4.identity()
+      // ignore: deprecated_member_use
+      ..translate(center.dx, center.dy)
+      // ignore: deprecated_member_use
+      ..scale(scale)
+      // ignore: deprecated_member_use
+      ..translate(-center.dx, -center.dy);
+
+    return ui.ImageFilter.matrix(matrix.storage);
   }
 
   /// Creates a saturation adjustment matrix

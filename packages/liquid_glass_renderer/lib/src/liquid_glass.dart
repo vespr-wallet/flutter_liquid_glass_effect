@@ -101,6 +101,7 @@ class LiquidGlass extends StatelessWidget {
         return FakeGlass(
           shape: shape,
           settings: settings,
+          frosted: frosted,
           child: child,
         );
       }
@@ -116,6 +117,7 @@ class LiquidGlass extends StatelessWidget {
     if (useFake) {
       return FakeGlass.inLayer(
         shape: shape,
+        frosted: frosted,
         child: child,
       );
     }
@@ -127,6 +129,7 @@ class LiquidGlass extends StatelessWidget {
     if (!ImageFilter.isShaderFilterSupported) {
       return FakeGlass.inLayer(
         shape: shape,
+        frosted: frosted,
         child: child,
       );
     }

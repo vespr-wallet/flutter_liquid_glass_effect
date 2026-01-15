@@ -284,6 +284,26 @@ Automatically used when:
 
 Uses standard `BackdropFilter` instead of custom shaders.
 
+**Features:**
+- Supports `frosted` parameter (blur vs clear)
+- Simulated refraction via `fakeGlassRefraction` setting (subtle magnification)
+- Color tinting and specular highlights
+
+```dart
+LiquidGlassSettings(
+  fakeGlassRefraction: 0.02,  // 2% magnification (default)
+  // Set to 0 to disable fake refraction
+)
+
+FakeGlass(
+  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+  frosted: false,  // Clear glass with magnification, no blur
+  child: Text('Clear'),
+)
+```
+
+**Note:** The fake refraction creates a uniform magnification effect centered on the shape. It's subtle but provides some visual interest for non-frosted FakeGlass.
+
 ## Usage Example
 
 ```dart

@@ -11,6 +11,17 @@ import 'package:motor/motor.dart';
 ///
 /// Will listen to drag gestures from the user without interfering with other
 /// gestures.
+///
+/// ## Optional Feature
+///
+/// LiquidStretch is completely optional and not required for basic glass
+/// effects. To disable the stretch effect:
+///
+/// - Simply don't wrap your widgets with LiquidStretch, OR
+/// - Set `stretch: 0` and `interactionScale: 1.0` to create a no-op wrapper
+///
+/// When both `stretch` is 0 and `interactionScale` is 1.0, this widget
+/// returns its child directly without any transformation overhead.
 class LiquidStretch extends StatelessWidget {
   /// Creates a new [LiquidStretch] widget with the given [child],
   /// [interactionScale], and [stretch].

@@ -220,6 +220,19 @@ class _RenderFakeGlass extends RenderProxyBox {
     return _cachedLuminance ??= settings.effectiveGlassColor.computeLuminance();
   }
 
+  // Cache for saturation matrix
+  double? _cachedSaturationValue;
+  List<double>? _cachedSaturationMatrix;
+  List<double> _getSaturationMatrix(double saturation) {
+    if (_cachedSaturationMatrix != null &&
+        _cachedSaturationValue == saturation) {
+      return _cachedSaturationMatrix!;
+    }
+    _cachedSaturationValue = saturation;
+    _cachedSaturationMatrix = _createSaturationMatrix(saturation);
+    return _cachedSaturationMatrix!;
+  }
+
   BackdropKey? _backdropKey;
   BackdropKey? get backdropKey => _backdropKey;
   set backdropKey(BackdropKey? value) {
@@ -314,10 +327,15 @@ class _RenderFakeGlass extends RenderProxyBox {
 
     // Apply visibility as opacity to all effects
     if (visibility < 1.0) {
-      canvas.saveLayer(bounds, Paint()..color = Color.fromARGB(
-        (255 * visibility).round(),
-        255, 255, 255,
-      ));
+      canvas.saveLayer(
+          bounds,
+          Paint()
+            ..color = Color.fromARGB(
+              (255 * visibility).round(),
+              255,
+              255,
+              255,
+            ));
     }
 
     _paintColor(canvas, path);
@@ -345,14 +363,18 @@ class _RenderFakeGlass extends RenderProxyBox {
     final localCenter = Offset(size.width / 2, size.height / 2);
     final center = _isTransforming ? localCenter : bounds.center;
 
-    final refractionFilter = refraction > 0
+    // Skip saturation and refraction filters during animation (visibility < 1.0)
+    // to avoid Impeller trembling.
+    //
+    // See: docs/flutter_backdrop_filter_layer_flicker.md
+    const isAnimating = false; //settings.visibility < 1.0;
+
+    final refractionFilter = !isAnimating && refraction > 0
         ? _createRefractionFilter(center, refraction, size)
         : null;
-
-    // Create saturation filter if needed
-    final saturationFilter = settings.effectiveSaturation != 1.0
+    final saturationFilter = !isAnimating && settings.effectiveSaturation != 1.0
         ? ui.ColorFilter.matrix(
-            _createSaturationMatrix(settings.effectiveSaturation),
+            _getSaturationMatrix(settings.effectiveSaturation),
           )
         : null;
 
@@ -411,19 +433,15 @@ class _RenderFakeGlass extends RenderProxyBox {
     final scaleY =
         size.height > 0 ? 1.0 - (2 * refractionPixels / size.height) : 1.0;
 
-    // ignore: deprecated_member_use
     final matrix = Matrix4.identity()
-      // ignore: deprecated_member_use
-      ..translate(center.dx, center.dy)
-      // ignore: deprecated_member_use
-      ..scale(scaleX, scaleY)
-      // ignore: deprecated_member_use
-      ..translate(-center.dx, -center.dy);
+      ..translateByDouble(center.dx, center.dy, 0, 1)
+      ..scaleByDouble(scaleX, scaleY, 1, 1)
+      ..translateByDouble(-center.dx, -center.dy, 0, 1);
 
     return ui.ImageFilter.matrix(matrix.storage);
   }
 
-  /// Creates a saturation adjustment matrix
+  /// Creates a saturation adjustment matrix.
   /// saturation = 0 -> grayscale (using Rec. 709 luma coefficients)
   /// saturation = 1 -> original color (no change)
   /// saturation > 1 -> over-saturated

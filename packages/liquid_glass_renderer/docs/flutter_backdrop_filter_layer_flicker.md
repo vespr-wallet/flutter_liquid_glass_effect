@@ -102,6 +102,52 @@ This keeps the layer alive and painting, avoiding the destruction flicker.
 - Widgets that don't use `BackdropFilterLayer` (e.g., `Offstage`, `Opacity`) don't exhibit this issue on their own
 - The flicker occurs on the "settle" (disappearance), not on appearance
 
+---
+
+# Matrix Filter Animation Trembling
+
+## Issue Summary
+
+When using `ImageFilter.matrix` or `ColorFilter.matrix` inside a `BackdropFilterLayer` during animations, visual trembling/flickering occurs. This is separate from the destruction flicker above.
+
+## What Causes It
+
+Matrix-based filters cause visual instability when the widget is animating (e.g., during visibility transitions, size changes, or transforms). The issue manifests as a "trembling" or rapid flickering of the filtered content.
+
+Affected filters:
+- `ui.ImageFilter.matrix()` - used for refraction/magnification effects
+- `ui.ColorFilter.matrix()` - used for saturation adjustments
+
+Unaffected filters:
+- `ui.ImageFilter.blur()` - works smoothly during animations
+
+## Workaround
+
+Disable matrix-based filters entirely, or only apply them when the widget is static (not animating). In FakeGlass, we chose to disable refraction and saturation filters to ensure smooth animations:
+
+```dart
+ui.ImageFilter? _buildCombinedFilter(Rect bounds) {
+  // Note: Refraction and saturation filters are disabled because
+  // ImageFilter.matrix and ColorFilter.matrix cause visual trembling
+  // in Impeller during animations.
+
+  if (!_frosted) {
+    return null;
+  }
+
+  // Only blur - no matrix filters
+  return ui.ImageFilter.blur(
+    sigmaX: settings.effectiveBlur,
+    sigmaY: settings.effectiveBlur,
+    tileMode: TileMode.mirror,
+  );
+}
+```
+
+---
+
 ## Potential Flutter Issue
 
-This may warrant a Flutter issue report for the Impeller rendering backend. The layer destruction should not cause visible artifacts.
+These issues may warrant Flutter issue reports for the Impeller rendering backend:
+1. Layer destruction should not cause visible artifacts
+2. Matrix-based filters should not cause trembling during animations

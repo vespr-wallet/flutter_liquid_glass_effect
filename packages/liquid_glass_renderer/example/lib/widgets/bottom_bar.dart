@@ -567,18 +567,22 @@ class _TabIndicatorState extends State<_TabIndicator>
                       alignment: alignment,
                       thickness: thickness,
                       child: LiquidGlass.withOwnLayer(
-                        fake: widget.fake,
+                        fake: true,
                         settings: LiquidGlassSettings(
+                          // thickness is animated
                           visibility: thickness,
+                          // disable refraction and saturation
+                          // because it flickers during animation (Impeller BUG?)
+                          // see: docs/flutter_backdrop_filter_layer_flicker.md
+                          fakeGlassRefraction: 0,
+                          saturation: 1.0,
                           glassColor: Color.from(
                             alpha: .1,
                             red: 1,
                             green: 1,
                             blue: 1,
                           ),
-                          saturation: 1.5,
-                          refractiveIndex: 1.15,
-                          thickness: 20,
+                          thickness: 4,
                           lightIntensity: 2,
                           chromaticAberration: .5,
                           blur: 0,

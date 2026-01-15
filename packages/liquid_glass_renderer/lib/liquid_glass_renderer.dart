@@ -31,7 +31,7 @@ export 'src/rendering/liquid_glass_layer.dart' show LiquidGlassLayer;
 export 'src/stretch.dart'
     show
         LiquidStretch,
-        LiquidStretchScale,
+        LiquidTransform,
         OffsetResistanceExtension,
         RawLiquidStretch;
 

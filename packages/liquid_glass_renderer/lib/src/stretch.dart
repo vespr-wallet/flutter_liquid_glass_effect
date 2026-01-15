@@ -6,10 +6,12 @@ import 'package:liquid_glass_renderer/src/internal/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
 
-/// Provides the current transform state applied by [LiquidStretch].
+/// Provides the current transform state applied by [LiquidStretch] or
+/// [LiquidTransform].
 ///
 /// This is used internally to compensate for transform when
 /// calculating refraction filter coordinates.
+@internal
 class LiquidStretchScale extends InheritedWidget {
   /// Creates a [LiquidStretchScale] with the given parameters.
   const LiquidStretchScale({
@@ -339,5 +341,115 @@ extension OffsetResistanceExtension on Offset {
     final scale = resistedMagnitude / magnitude;
 
     return Offset(dx * scale, dy * scale);
+  }
+}
+
+/// A [Transform] wrapper that automatically signals transform state to
+/// FakeGlass for correct refraction coordinate handling.
+///
+/// Use this instead of [Transform] when applying transforms to widgets
+/// containing FakeGlass or LiquidGlass with fake mode enabled.
+///
+/// When [transform] is not identity, this widget wraps its child with
+/// [LiquidStretchScale] to signal that local coordinates should be used
+/// for refraction calculations.
+///
+/// ```dart
+/// LiquidTransform(
+///   transform: Matrix4.rotationZ(0.1),
+///   child: FakeGlass(...),
+/// )
+/// ```
+class LiquidTransform extends StatefulWidget {
+  /// Creates a [LiquidTransform] with the given [transform] matrix.
+  const LiquidTransform({
+    required this.transform,
+    required this.child,
+    this.origin,
+    this.alignment,
+    this.transformHitTests = true,
+    this.filterQuality,
+    super.key,
+  });
+
+  /// The matrix to transform the child by.
+  final Matrix4 transform;
+
+  /// The origin of the coordinate system for the transform.
+  final Offset? origin;
+
+  /// The alignment of the origin, relative to the size of the box.
+  final AlignmentGeometry? alignment;
+
+  /// Whether to apply the transformation when performing hit tests.
+  final bool transformHitTests;
+
+  /// The filter quality for images affected by the transform.
+  final FilterQuality? filterQuality;
+
+  /// The widget below this widget in the tree.
+  final Widget child;
+
+  @override
+  State<LiquidTransform> createState() => _LiquidTransformState();
+}
+
+class _LiquidTransformState extends State<LiquidTransform> {
+  bool _isTransforming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isTransforming = !_isIdentity(widget.transform);
+  }
+
+  @override
+  void didUpdateWidget(LiquidTransform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.transform != oldWidget.transform) {
+      _isTransforming = !_isIdentity(widget.transform);
+    }
+  }
+
+  /// Whether the given transform matrix is the identity matrix.
+  static bool _isIdentity(Matrix4 transform) {
+    return transform.storage[0] == 1.0 &&
+        transform.storage[1] == 0.0 &&
+        transform.storage[2] == 0.0 &&
+        transform.storage[3] == 0.0 &&
+        transform.storage[4] == 0.0 &&
+        transform.storage[5] == 1.0 &&
+        transform.storage[6] == 0.0 &&
+        transform.storage[7] == 0.0 &&
+        transform.storage[8] == 0.0 &&
+        transform.storage[9] == 0.0 &&
+        transform.storage[10] == 1.0 &&
+        transform.storage[11] == 0.0 &&
+        transform.storage[12] == 0.0 &&
+        transform.storage[13] == 0.0 &&
+        transform.storage[14] == 0.0 &&
+        transform.storage[15] == 1.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final transformWidget = Transform(
+      transform: widget.transform,
+      origin: widget.origin,
+      alignment: widget.alignment,
+      transformHitTests: widget.transformHitTests,
+      filterQuality: widget.filterQuality,
+      child: widget.child,
+    );
+
+    if (!_isTransforming) {
+      return transformWidget;
+    }
+
+    return LiquidStretchScale(
+      scale: 1,
+      isTransforming: true,
+      child: transformWidget,
+    );
   }
 }

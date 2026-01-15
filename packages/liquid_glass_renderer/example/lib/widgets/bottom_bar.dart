@@ -583,7 +583,6 @@ class _TabIndicatorState extends State<_TabIndicator>
                           chromaticAberration: .5,
                           blur: 0,
                         ),
-
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,
                         ),
@@ -644,14 +643,14 @@ class _IndicatorTransform extends StatelessWidget {
                 ),
                 value: velocity,
                 builder: (context, velocity, child) {
-                  return Transform(
+                  return LiquidTransform(
                     alignment: Alignment.center,
                     transform: buildJellyTransform(
                       velocity: Offset(velocity, 0),
                       maxDistortion: .8,
                       velocityScale: 10,
                     ),
-                    child: child,
+                    child: child!,
                   );
                 },
                 child: child,

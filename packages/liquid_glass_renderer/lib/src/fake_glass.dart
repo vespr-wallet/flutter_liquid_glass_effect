@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+// ignore: implementation_imports
+import 'package:liquid_glass_renderer/src/stretch.dart' show LiquidStretchScale;
 import 'package:meta/meta.dart';
 
 /// Debug toggle for FakeGlass depth gradient effect.
@@ -45,7 +47,7 @@ const _kSpecularBlurDivisor = 5.0;
 /// Divisor for overlay stroke width (higher = thinner)
 const _kSpecularOverlayWidthDivisor = 1.9;
 
-/// Multiplier for overlay width divisor when frosted (higher = thinner when frosted)
+/// Multiplier for overlay width divisor when frosted (higher = thinner)
 const _kSpecularOverlayFrostedMultiplier = 1.5;
 
 /// Alpha multiplier for blurred overlay (0.0 - 1.0)
@@ -427,11 +429,11 @@ class _RenderFakeGlass extends RenderProxyBox {
     final opaqueColor = color.withValues(alpha: 1);
     final hsl = HSLColor.fromColor(opaqueColor);
 
-    // If nearly grayscale, just use white
-    if (hsl.saturation < 0.05) return Colors.white;
+    // Lerp lightness 75% - 90% towards white - very bright but keeps hue
+    // Use 90% for nearly grayscale colors, 75% for more colorful colors.
+    final lerpFactor = hsl.saturation < 0.05 ? 0.9 : 0.75;
 
-    // Lerp lightness 90% towards white - very bright but keeps hue
-    final brighterLightness = ui.lerpDouble(hsl.lightness, 1.0, 0.75)!;
+    final brighterLightness = ui.lerpDouble(hsl.lightness, 1.0, lerpFactor)!;
     return hsl.withLightness(brighterLightness.clamp(0.0, 1.0)).toColor();
   }
 

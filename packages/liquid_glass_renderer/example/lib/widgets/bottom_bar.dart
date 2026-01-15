@@ -98,7 +98,7 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
           lightAngle: math.pi / 4,
           glassColor: CupertinoTheme.of(
             context,
-          ).barBackgroundColor.withValues(alpha: 0.6),
+          ).barBackgroundColor.withValues(alpha: 0.1),
         );
 
     return LiquidGlassLayer(

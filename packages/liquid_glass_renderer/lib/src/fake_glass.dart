@@ -268,6 +268,15 @@ class _RenderFakeGlass extends RenderProxyBox {
       return;
     }
 
+    // Skip backdrop filter at low visibility to avoid layer destruction
+    // flicker. BackdropFilterLayer removal causes a visual glitch in Impeller;
+    // by releasing the layer before the widget is removed, we avoid this.
+    if (settings.visibility < 0.05) {
+      _paintGlassEffects(context.canvas, path, bounds);
+      super.paint(context, offset);
+      return;
+    }
+
     // Build the filter fresh each frame to avoid stale cache issues
     final combinedFilter = _buildCombinedFilter(bounds);
 
@@ -296,11 +305,29 @@ class _RenderFakeGlass extends RenderProxyBox {
   }
 
   /// Paints all glass visual effects (color, depth, shadow, specular).
+  ///
+  /// Effects are scaled by visibility to fade out smoothly with the content.
   void _paintGlassEffects(Canvas canvas, Path path, Rect bounds) {
+    final visibility = settings.visibility;
+    // Skip painting effects at very low visibility to prevent flicker
+    if (visibility < 0.05) return;
+
+    // Apply visibility as opacity to all effects
+    if (visibility < 1.0) {
+      canvas.saveLayer(bounds, Paint()..color = Color.fromARGB(
+        (255 * visibility).round(),
+        255, 255, 255,
+      ));
+    }
+
     _paintColor(canvas, path);
     _paintDepthGradient(canvas, path, bounds);
     _paintInnerEdgeShadow(canvas, path, bounds);
     _paintSpecular(canvas, path, bounds);
+
+    if (visibility < 1.0) {
+      canvas.restore();
+    }
   }
 
   /// Builds the combined filter based on current settings.

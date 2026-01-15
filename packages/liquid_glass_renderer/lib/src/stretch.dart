@@ -433,23 +433,19 @@ class _LiquidTransformState extends State<LiquidTransform> {
 
   @override
   Widget build(BuildContext context) {
-    final transformWidget = Transform(
-      transform: widget.transform,
-      origin: widget.origin,
-      alignment: widget.alignment,
-      transformHitTests: widget.transformHitTests,
-      filterQuality: widget.filterQuality,
-      child: widget.child,
-    );
-
-    if (!_isTransforming) {
-      return transformWidget;
-    }
-
+    // Always wrap with LiquidStretchScale to avoid tree changes that cause
+    // visual flicker when transitioning between transform/no-transform states.
     return LiquidStretchScale(
       scale: 1,
-      isTransforming: true,
-      child: transformWidget,
+      isTransforming: _isTransforming,
+      child: Transform(
+        transform: widget.transform,
+        origin: widget.origin,
+        alignment: widget.alignment,
+        transformHitTests: widget.transformHitTests,
+        filterQuality: widget.filterQuality,
+        child: widget.child,
+      ),
     );
   }
 }

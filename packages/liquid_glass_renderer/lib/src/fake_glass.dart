@@ -410,6 +410,24 @@ class _RenderFakeGlass extends RenderProxyBox {
     ];
   }
 
+  /// Creates a brighter version of the given color for specular highlights.
+  ///
+  /// Uses HSL color space to increase lightness while preserving hue.
+  /// Only considers RGB values (ignores alpha which controls tint intensity).
+  /// Falls back to white if the color has very low saturation.
+  Color _brightenColor(Color color) {
+    // Use RGB only - make opaque for HSL conversion
+    final opaqueColor = color.withValues(alpha: 1);
+    final hsl = HSLColor.fromColor(opaqueColor);
+
+    // If nearly grayscale, just use white
+    if (hsl.saturation < 0.05) return Colors.white;
+
+    // Lerp lightness 90% towards white - very bright but keeps hue
+    final brighterLightness = ui.lerpDouble(hsl.lightness, 1.0, 0.75)!;
+    return hsl.withLightness(brighterLightness.clamp(0.0, 1.0)).toColor();
+  }
+
   void _paintColor(Canvas canvas, Path path) {
     final color = settings.effectiveGlassColor;
     final luminance = settings.effectiveGlassColor.computeLuminance();
@@ -440,7 +458,11 @@ class _RenderFakeGlass extends RenderProxyBox {
 
     final thicknessFactor = (settings.effectiveThickness / 5).clamp(0.0, 1.0);
     final alpha = Curves.easeOut.transform(lightIntensity);
-    final color = Colors.white.withValues(
+
+    // Create specular color from glass tint - brighter version of glass color
+    final glassColor = settings.effectiveGlassColor;
+    final baseSpecularColor = _brightenColor(glassColor);
+    final color = baseSpecularColor.withValues(
       alpha: alpha * thicknessFactor,
     );
     final rad = settings.lightAngle;

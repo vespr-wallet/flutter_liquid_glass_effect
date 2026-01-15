@@ -459,6 +459,7 @@ class ShapeGeometry extends Equatable {
     required this.shape,
     required this.glassContainsChild,
     required this.shapeBounds,
+    required this.frosted,
     this.shapeToGeometry,
   })  : rawCornerRadius = _getRadiusFromGlassShape(shape),
         rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
@@ -485,6 +486,9 @@ class ShapeGeometry extends Equatable {
 
   final bool glassContainsChild;
 
+  /// Whether this shape should apply backdrop blur (frosted glass).
+  final bool frosted;
+
   /// Bounds in geometry-local coordinates (for painting)
   final Rect shapeBounds;
 
@@ -496,5 +500,6 @@ class ShapeGeometry extends Equatable {
         shape,
         glassContainsChild,
         shapeBounds,
+        frosted,
       ];
 }

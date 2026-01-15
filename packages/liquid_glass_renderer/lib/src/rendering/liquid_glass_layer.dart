@@ -219,6 +219,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
+  final _nonFrostedClipPathLayerHandle = LayerHandle<ClipPathLayer>();
+
   @override
   void paintLiquidGlass(
     PaintingContext context,
@@ -227,51 +229,104 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     Rect boundingBox,
   ) {
     if (!attached) return;
-    final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
-      ..backdropKey = backdropKey
-      ..filter = ImageFilter.blur(
-        tileMode: TileMode.mirror,
-        sigmaX: settings.effectiveBlur,
-        sigmaY: settings.effectiveBlur,
-      );
+
+    // Separate shapes into frosted and non-frosted
+    final frostedShapes =
+        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
+    final nonFrostedShapes =
+        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
+
+    for (final shape in shapes) {
+      if (!shape.$1.attached) continue;
+      final isFrosted = shape.$2.shapes.firstOrNull?.frosted ?? true;
+      if (isFrosted) {
+        frostedShapes.add(shape);
+      } else {
+        nonFrostedShapes.add(shape);
+      }
+    }
 
     final shaderLayer = (_shaderHandle.layer ??= BackdropFilterLayer())
       ..filter = ImageFilter.shader(renderShader);
 
-    final clipPath = Path();
-    for (final geometry in shapes) {
-      if (!geometry.$1.attached) continue;
-
-      clipPath.addPath(
-        geometry.$2.path,
-        Offset.zero,
-        matrix4: geometry.$3.storage,
-      );
-    }
-    _clipPathLayerHandle.layer = context
-        // First we push the clipped blur layer
-        .pushClipPath(
-      needsCompositing,
-      offset,
-      boundingBox,
-      clipPath,
-      (context, offset) {
-        context.pushLayer(
-          blurLayer,
-          (context, offset) {
-            // If glass contains child we paint it above blur but below shader
-            paintShapeContents(
-              context,
-              offset,
-              shapes,
-              insideGlass: true,
-            );
-          },
-          offset,
+    // 1. Apply blur ONLY to frosted shapes
+    if (frostedShapes.isNotEmpty && settings.effectiveBlur > 0) {
+      final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
+        ..backdropKey = backdropKey
+        ..filter = ImageFilter.blur(
+          tileMode: TileMode.mirror,
+          sigmaX: settings.effectiveBlur,
+          sigmaY: settings.effectiveBlur,
         );
-      },
-      oldLayer: _clipPathLayerHandle.layer,
-    );
+
+      final frostedClipPath = Path();
+      for (final geometry in frostedShapes) {
+        frostedClipPath.addPath(
+          geometry.$2.path,
+          Offset.zero,
+          matrix4: geometry.$3.storage,
+        );
+      }
+
+      _clipPathLayerHandle.layer = context.pushClipPath(
+        needsCompositing,
+        offset,
+        boundingBox,
+        frostedClipPath,
+        (context, offset) {
+          context.pushLayer(
+            blurLayer,
+            (context, offset) {
+              // Paint inside-glass content for frosted shapes
+              paintShapeContents(
+                context,
+                offset,
+                frostedShapes,
+                insideGlass: true,
+              );
+            },
+            offset,
+          );
+        },
+        oldLayer: _clipPathLayerHandle.layer,
+      );
+    } else {
+      _blurLayerHandle.layer = null;
+      _clipPathLayerHandle.layer = null;
+    }
+
+    // 2. Paint inside-glass content for non-frosted shapes (no blur)
+    if (nonFrostedShapes.isNotEmpty) {
+      final nonFrostedClipPath = Path();
+      for (final geometry in nonFrostedShapes) {
+        nonFrostedClipPath.addPath(
+          geometry.$2.path,
+          Offset.zero,
+          matrix4: geometry.$3.storage,
+        );
+      }
+
+      _nonFrostedClipPathLayerHandle.layer = context.pushClipPath(
+        needsCompositing,
+        offset,
+        boundingBox,
+        nonFrostedClipPath,
+        (context, offset) {
+          // Paint inside-glass content for non-frosted shapes (no blur)
+          paintShapeContents(
+            context,
+            offset,
+            nonFrostedShapes,
+            insideGlass: true,
+          );
+        },
+        oldLayer: _nonFrostedClipPathLayerHandle.layer,
+      );
+    } else {
+      _nonFrostedClipPathLayerHandle.layer = null;
+    }
+
+    // 3. Apply shader to ALL shapes
     _clipRectLayerHandle.layer = context.pushClipRect(
       needsCompositing,
       offset,
@@ -300,6 +355,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _shaderHandle.layer = null;
     _clipPathLayerHandle.layer = null;
     _clipRectLayerHandle.layer = null;
+    _nonFrostedClipPathLayerHandle.layer = null;
     super.dispose();
   }
 }

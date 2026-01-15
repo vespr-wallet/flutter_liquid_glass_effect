@@ -32,6 +32,7 @@ class LiquidGlass extends StatelessWidget {
   const LiquidGlass({
     required this.child,
     required this.shape,
+    this.frosted,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     super.key,
@@ -49,6 +50,7 @@ class LiquidGlass extends StatelessWidget {
     required this.shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
     bool fake = false,
+    this.frosted,
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
@@ -79,6 +81,14 @@ class LiquidGlass extends StatelessWidget {
   ///
   /// Defaults to [Clip.hardEdge], so [child] will be clipped to the shape.
   final Clip clipBehavior;
+
+  /// Whether this glass shape should apply backdrop blur (frosted).
+  ///
+  /// When true, the background behind this shape will be blurred.
+  /// When false, only refraction is applied (clear glass).
+  ///
+  /// If null, uses the default from [LiquidGlassSettings.frosted].
+  final bool? frosted;
 
   /// The settings for this glass if it is supposed to create its own layer.
   final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
@@ -122,6 +132,8 @@ class LiquidGlass extends StatelessWidget {
     }
 
     final settings = LiquidGlassSettings.of(context);
+    // Resolve frosted: use widget value if provided, otherwise use settings
+    final resolvedFrosted = frosted ?? settings.frosted;
 
     return ShaderBuilder(
       (context, shader, builtChild) => _RawLiquidGlass(
@@ -131,6 +143,7 @@ class LiquidGlass extends StatelessWidget {
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
         glassContainsChild: glassContainsChild,
+        frosted: resolvedFrosted,
         child: builtChild,
       ),
       assetKey: ShaderKeys.blendedGeometry,
@@ -157,6 +170,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.devicePixelRatio,
     required this.shape,
     required this.glassContainsChild,
+    required this.frosted,
   });
 
   final FragmentShader shader;
@@ -165,6 +179,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
   final double devicePixelRatio;
   final LiquidShape shape;
   final bool glassContainsChild;
+  final bool frosted;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -175,6 +190,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       devicePixelRatio: devicePixelRatio,
       shape: shape,
       glassContainsChild: glassContainsChild,
+      frosted: frosted,
     );
   }
 
@@ -188,7 +204,8 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..devicePixelRatio = devicePixelRatio
       ..shape = shape
-      ..glassContainsChild = glassContainsChild;
+      ..glassContainsChild = glassContainsChild
+      ..frosted = frosted;
   }
 }
 
@@ -208,8 +225,10 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     required super.devicePixelRatio,
     required LiquidShape shape,
     required bool glassContainsChild,
+    required bool frosted,
   })  : _shape = shape,
-        _glassContainsChild = glassContainsChild;
+        _glassContainsChild = glassContainsChild,
+        _frosted = frosted;
 
   LiquidShape _shape;
 
@@ -229,6 +248,16 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
   set glassContainsChild(bool value) {
     if (_glassContainsChild == value) return;
     _glassContainsChild = value;
+    markNeedsPaint();
+  }
+
+  bool _frosted;
+
+  /// Whether this shape should apply backdrop blur (frosted glass).
+  bool get frosted => _frosted;
+  set frosted(bool value) {
+    if (_frosted == value) return;
+    _frosted = value;
     markNeedsPaint();
   }
 
@@ -305,13 +334,15 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
       shape: _shape,
       glassContainsChild: _glassContainsChild,
       shapeBounds: bounds,
+      frosted: _frosted,
     );
 
     // Compare with cached geometry to determine if rebuild needed
     final cached = geometry?.shapes.firstOrNull;
     final needsUpdate = cached == null ||
         cached.shapeBounds != bounds ||
-        cached.shape != _shape;
+        cached.shape != _shape ||
+        cached.frosted != _frosted;
 
     return (bounds, [shapeGeometry], needsUpdate);
   }

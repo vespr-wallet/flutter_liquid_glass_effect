@@ -19,6 +19,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.ambientStrength = 0,
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
+    this.frosted = true,
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -33,6 +34,7 @@ class LiquidGlassSettings with EquatableMixin {
     double lightIntensity = 50,
     double lightAngle = 0.5 * pi,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
+    bool frosted = true,
   }) : this(
           visibility: visibility,
           refractiveIndex: 1 + (refraction / 100) * 0.2,
@@ -44,6 +46,7 @@ class LiquidGlassSettings with EquatableMixin {
           ambientStrength: 0.1,
           saturation: 1.5,
           glassColor: glassColor,
+          frosted: frosted,
         );
 
   /// A minimal glass effect with no lighting or chromatic aberration.
@@ -57,6 +60,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.blur = 4,
     this.refractiveIndex = 1.15,
     this.saturation = 1.2,
+    this.frosted = true,
   })  : chromaticAberration = 0,
         lightAngle = 0,
         lightIntensity = 0,
@@ -73,6 +77,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.blur = 3,
     this.refractiveIndex = 1.1,
     this.saturation = 1.3,
+    this.frosted = true,
   })  : chromaticAberration = 0.005,
         lightAngle = 0.5 * pi,
         lightIntensity = 0.3,
@@ -165,6 +170,15 @@ class LiquidGlassSettings with EquatableMixin {
   /// The effective saturation taking visibility into account.
   double get effectiveSaturation => 1 + (saturation - 1) * visibility;
 
+  /// Whether glass shapes should apply backdrop blur by default.
+  ///
+  /// When true, glass shapes will blur the background behind them (frosted).
+  /// When false, glass shapes will only apply refraction without blur (clear).
+  ///
+  /// Individual [LiquidGlass] widgets can override this per-shape.
+  /// Defaults to true.
+  final bool frosted;
+
   /// Creates a new [LiquidGlassSettings] with the given settings.
   LiquidGlassSettings copyWith({
     double? visibility,
@@ -178,6 +192,7 @@ class LiquidGlassSettings with EquatableMixin {
     double? ambientStrength,
     double? refractiveIndex,
     double? saturation,
+    bool? frosted,
   }) =>
       LiquidGlassSettings(
         visibility: visibility ?? this.visibility,
@@ -190,6 +205,7 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength: ambientStrength ?? this.ambientStrength,
         refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
+        frosted: frosted ?? this.frosted,
       );
 
   @override
@@ -204,5 +220,6 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength,
         refractiveIndex,
         saturation,
+        frosted,
       ];
 }

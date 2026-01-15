@@ -248,6 +248,35 @@ To disable: don't wrap with `LiquidStretch`, or use `stretch: 0`.
 ### GlassGlow (touch glow)
 Automatically included when using `LiquidGlass`. Touch the glass to see glow.
 
+### Frosted vs Clear Glass
+By default, all glass shapes are "frosted" (blurred backdrop). You can mix frosted and clear (non-blurred) glass within the same layer:
+
+```dart
+LiquidGlassLayer(
+  settings: LiquidGlassSettings(
+    blur: 10,
+    frosted: true,  // Default for shapes that don't specify
+  ),
+  child: Column(
+    children: [
+      // Frosted glass (uses default from settings)
+      LiquidGlass(
+        shape: LiquidRoundedSuperellipse(borderRadius: 20),
+        child: Text('Frosted'),
+      ),
+      // Clear glass (override per-shape)
+      LiquidGlass(
+        frosted: false,  // No blur, just refraction
+        shape: LiquidOval(),
+        child: Text('Clear'),
+      ),
+    ],
+  ),
+)
+```
+
+**Performance optimization**: Blur is only applied to the frosted shapes' area, not the entire layer. This means mixing frosted and non-frosted shapes has minimal overhead.
+
 ### FakeGlass (non-Impeller fallback)
 Automatically used when:
 - Impeller is not available

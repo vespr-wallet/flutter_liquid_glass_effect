@@ -208,7 +208,14 @@ class _RenderFakeGlass extends RenderProxyBox {
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
+    _cachedLuminance = null; // Invalidate cache
     markNeedsPaint();
+  }
+
+  // Cache for expensive computeLuminance() call
+  double? _cachedLuminance;
+  double get _glassColorLuminance {
+    return _cachedLuminance ??= settings.effectiveGlassColor.computeLuminance();
   }
 
   BackdropKey? _backdropKey;
@@ -430,15 +437,21 @@ class _RenderFakeGlass extends RenderProxyBox {
 
   void _paintColor(Canvas canvas, Path path) {
     final color = settings.effectiveGlassColor;
-    final luminance = settings.effectiveGlassColor.computeLuminance();
 
-    final blendMode = luminance < 0.5 ? BlendMode.multiply : BlendMode.screen;
+    // Multiply for dark tints (absorption), screen for light (transmission)
+    final blendMode =
+        _glassColorLuminance < 0.5 ? BlendMode.multiply : BlendMode.screen;
 
     final paint = Paint()
       ..color = color
       ..blendMode = blendMode
       ..style = PaintingStyle.fill;
 
+    canvas.drawPath(path, paint);
+
+    paint
+      ..blendMode = BlendMode.overlay
+      ..color = color.withValues(alpha: color.a * .2);
     canvas.drawPath(path, paint);
   }
 

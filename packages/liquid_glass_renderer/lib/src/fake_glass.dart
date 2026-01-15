@@ -8,6 +8,60 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:meta/meta.dart';
 
+/// Debug toggle for FakeGlass depth gradient effect.
+/// Set to false to disable and compare the visual difference.
+const _kEnableDepthGradient = true;
+
+// =============================================================================
+// TUNING CONSTANTS - Hot reload friendly! Adjust and save to see changes.
+// =============================================================================
+
+// -- Inner Edge Shadow --
+/// Divisor for shadow width (higher = thinner). shadowWidth = thickness / this
+const _kShadowWidthDivisor = 5.0;
+
+/// Min/max shadow width in pixels
+const _kShadowWidthMin = 1.0;
+const _kShadowWidthMax = 4.0;
+
+/// Divisor for shadow alpha (higher = more transparent). alpha = thickness / this
+const _kShadowAlphaDivisor = 200.0;
+
+/// Min/max shadow alpha (0.0 - 1.0)
+const _kShadowAlphaMin = 0.02;
+const _kShadowAlphaMax = 0.08;
+
+// -- Specular Highlights --
+/// Min/max stroke width for sharp specular line
+const _kSpecularStrokeMin = 2.0;
+const _kSpecularStrokeMax = 2.7;
+
+/// Alpha multiplier for sharp specular (0.0 - 1.0)
+const _kSpecularAlpha = 0.7;
+
+/// Divisor for overlay blur sigma (higher = less blur)
+const _kSpecularBlurDivisor = 5.0;
+
+/// Divisor for overlay stroke width (higher = thinner)
+const _kSpecularOverlayWidthDivisor = 1.9;
+
+/// Multiplier for overlay width divisor when frosted (higher = thinner when frosted)
+const _kSpecularOverlayFrostedMultiplier = 1.5;
+
+/// Alpha multiplier for blurred overlay (0.0 - 1.0)
+const _kSpecularOverlayAlpha = 1.0;
+
+// -- Depth Gradient --
+/// Multiplier for gradient alpha based on light intensity
+const _kDepthGradientAlphaMultiplier = .1;
+
+/// Min/max gradient alpha (0.0 - 1.0)
+const _kDepthGradientAlphaMin = 0.2;
+const _kDepthGradientAlphaMax = 0.9;
+
+/// Ratio for dark side alpha relative to light side (0.0 - 1.0)
+const _kDepthGradientDarkRatio = 0.7;
+
 /// A widget that aims to provide a similar look to [LiquidGlass], but without
 /// the expensive shader.
 class FakeGlass extends StatelessWidget {
@@ -435,20 +489,24 @@ class _RenderFakeGlass extends RenderProxyBox {
 
     final paint = Paint()
       ..shader = shader
-      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = ui.lerpDouble(1, 2, lightIntensity)!
-      ..color = color.withValues(alpha: color.a * 0.3)
+      ..strokeWidth = ui.lerpDouble(
+          _kSpecularStrokeMin, _kSpecularStrokeMax, lightIntensity)!
+      ..color = color.withValues(alpha: color.a * _kSpecularAlpha)
       ..blendMode = BlendMode.hardLight;
     canvas.drawPath(path, paint);
 
     final overlay = Paint()
       ..shader = shader
-      ..color = color.withValues(alpha: color.a * 0.6)
+      ..color = color.withValues(alpha: color.a * _kSpecularOverlayAlpha)
       ..style = PaintingStyle.stroke
-      ..maskFilter =
-          MaskFilter.blur(BlurStyle.normal, (settings.effectiveThickness / 40))
-      ..strokeWidth = (settings.effectiveThickness / 10)
+      ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal, settings.effectiveThickness / _kSpecularBlurDivisor)
+      ..strokeWidth = settings.effectiveThickness /
+          (_frosted
+              ? _kSpecularOverlayWidthDivisor *
+                  _kSpecularOverlayFrostedMultiplier
+              : _kSpecularOverlayWidthDivisor)
       ..blendMode = BlendMode.overlay;
     canvas.drawPath(path, overlay);
   }
@@ -460,9 +518,11 @@ class _RenderFakeGlass extends RenderProxyBox {
     final thickness = settings.effectiveThickness;
     if (thickness <= 0) return;
 
-    // Inner shadow - darker at edges, transparent toward center
-    final shadowWidth = (thickness / 3).clamp(2.0, 8.0);
-    final shadowAlpha = (thickness / 100).clamp(0.05, 0.15);
+    // Inner shadow - subtle darkening at edges
+    final shadowWidth = (thickness / _kShadowWidthDivisor)
+        .clamp(_kShadowWidthMin, _kShadowWidthMax);
+    final shadowAlpha = (thickness / _kShadowAlphaDivisor)
+        .clamp(_kShadowAlphaMin, _kShadowAlphaMax);
 
     final innerShadow = Paint()
       ..color = Colors.black.withValues(alpha: shadowAlpha)
@@ -478,11 +538,14 @@ class _RenderFakeGlass extends RenderProxyBox {
   /// Creates a gradient from top-left (lighter) to bottom-right (darker)
   /// based on the light angle to simulate light passing through glass.
   void _paintDepthGradient(Canvas canvas, Path path, Rect bounds) {
+    if (!_kEnableDepthGradient) return;
+
     final thickness = settings.effectiveThickness;
     if (thickness <= 0) return;
 
     final lightIntensity = settings.effectiveLightIntensity.clamp(0.0, 1.0);
-    final gradientAlpha = (lightIntensity * 0.1).clamp(0.0, 0.08);
+    final gradientAlpha = (lightIntensity * _kDepthGradientAlphaMultiplier)
+        .clamp(_kDepthGradientAlphaMin, _kDepthGradientAlphaMax);
 
     if (gradientAlpha <= 0) return;
 
@@ -495,7 +558,9 @@ class _RenderFakeGlass extends RenderProxyBox {
       colors: [
         Colors.white.withValues(alpha: gradientAlpha),
         Colors.transparent,
-        Colors.black.withValues(alpha: gradientAlpha * 0.5),
+        Colors.black.withValues(
+          alpha: gradientAlpha * _kDepthGradientDarkRatio,
+        ),
       ],
       stops: const [0.0, 0.5, 1.0],
       begin: Alignment(x, y),

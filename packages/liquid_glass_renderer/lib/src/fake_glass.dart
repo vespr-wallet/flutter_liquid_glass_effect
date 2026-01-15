@@ -256,7 +256,7 @@ class _RenderFakeGlass extends RenderProxyBox {
     final center = _isTransforming ? localCenter : bounds.center;
 
     final refractionFilter = refraction > 0
-        ? _createRefractionFilter(center, refraction)
+        ? _createRefractionFilter(center, refraction, size)
         : null;
 
     // Create saturation filter if needed
@@ -303,18 +303,30 @@ class _RenderFakeGlass extends RenderProxyBox {
     return combinedFilter;
   }
 
-  /// Creates a magnification filter to simulate refraction.
+  /// Creates a non-uniform scale filter to simulate refraction.
   ///
-  /// The [refraction] value controls the strength (0.02 = ~2% magnification).
-  ui.ImageFilter _createRefractionFilter(Offset center, double refraction) {
-    // Scale around center point to create magnification effect
-    final scale = 1.0 - refraction;
+  /// The [refractionPixels] value specifies the target edge offset in pixels.
+  /// Each axis is scaled independently to achieve consistent edge displacement
+  /// regardless of widget aspect ratio.
+  ui.ImageFilter _createRefractionFilter(
+    Offset center,
+    double refractionPixels,
+    Size size,
+  ) {
+    // Calculate per-axis scale to achieve target pixel offset at edges.
+    // For a widget of width W, to shift edges by P pixels:
+    // scaleX = 1 - P / (W / 2) = 1 - 2P / W
+    final scaleX =
+        size.width > 0 ? 1.0 - (2 * refractionPixels / size.width) : 1.0;
+    final scaleY =
+        size.height > 0 ? 1.0 - (2 * refractionPixels / size.height) : 1.0;
+
     // ignore: deprecated_member_use
     final matrix = Matrix4.identity()
       // ignore: deprecated_member_use
       ..translate(center.dx, center.dy)
       // ignore: deprecated_member_use
-      ..scale(scale)
+      ..scale(scaleX, scaleY)
       // ignore: deprecated_member_use
       ..translate(-center.dx, -center.dy);
 

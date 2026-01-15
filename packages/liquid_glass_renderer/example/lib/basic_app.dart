@@ -74,7 +74,8 @@ class BasicApp extends HookWidget {
                     glassColor: CupertinoTheme.of(
                       context,
                     ).barBackgroundColor.withValues(alpha: 0.2),
-                    fakeGlassRefraction: 0.08,
+                    fakeGlassRefraction: 5.0,
+                    fakeGlassRefractionFrostedMultiplier: 1.5,
                   );
                   return LiquidGlassLayer(
                     fake: fake.value,

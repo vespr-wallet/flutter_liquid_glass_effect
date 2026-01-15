@@ -20,8 +20,8 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
     this.frosted = true,
-    this.fakeGlassRefraction = 0.02,
-    this.fakeGlassRefractionFrostedMultiplier = 2.0,
+    this.fakeGlassRefraction = 5.0,
+    this.fakeGlassRefractionFrostedMultiplier = 1.5,
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -37,7 +37,7 @@ class LiquidGlassSettings with EquatableMixin {
     double lightAngle = 0.5 * pi,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
     bool frosted = true,
-    double fakeGlassRefraction = 0.02,
+    double fakeGlassRefraction = 5.0,
     double fakeGlassRefractionFrostedMultiplier = 2.0,
   }) : this(
           visibility: visibility,
@@ -68,7 +68,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.15,
     this.saturation = 1.2,
     this.frosted = true,
-    this.fakeGlassRefraction = 0.02,
+    this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0,
         lightAngle = 0,
@@ -87,7 +87,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.refractiveIndex = 1.1,
     this.saturation = 1.3,
     this.frosted = true,
-    this.fakeGlassRefraction = 0.02,
+    this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0.005,
         lightAngle = 0.5 * pi,
@@ -190,16 +190,19 @@ class LiquidGlassSettings with EquatableMixin {
   /// Defaults to true.
   final bool frosted;
 
-  /// The strength of the fake refraction effect used by [FakeGlass].
+  /// The fake refraction edge offset in pixels used by [FakeGlass].
   ///
-  /// This creates a subtle magnification effect to simulate refraction when
+  /// This creates a non-uniform scale effect to simulate refraction when
   /// custom shaders are not available (non-Impeller devices).
   ///
-  /// A value of 0.02 means ~2% magnification. Set to 0 to disable.
-  /// This has no effect on [LiquidGlass] which uses real shader-based
-  /// refraction.
+  /// The value specifies how many pixels the edges should appear to shift
+  /// inward. Each axis is scaled independently, so wide buttons and tall
+  /// buttons will have consistent edge displacement.
   ///
-  /// Defaults to 0.02.
+  /// Set to 0 to disable. This has no effect on [LiquidGlass] which uses
+  /// real shader-based refraction.
+  ///
+  /// Defaults to 5.0 pixels.
   final double fakeGlassRefraction;
 
   /// Multiplier applied to [fakeGlassRefraction] when the glass is frosted.

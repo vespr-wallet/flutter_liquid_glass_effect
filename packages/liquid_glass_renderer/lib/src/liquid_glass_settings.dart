@@ -46,6 +46,38 @@ class LiquidGlassSettings with EquatableMixin {
           glassColor: glassColor,
         );
 
+  /// A minimal glass effect with no lighting or chromatic aberration.
+  ///
+  /// Good for subtle, unobtrusive glass effects where you just want
+  /// refraction and blur without decorative lighting.
+  const LiquidGlassSettings.minimal({
+    this.visibility = 1.0,
+    this.glassColor = const Color.fromARGB(0, 255, 255, 255),
+    this.thickness = 15,
+    this.blur = 4,
+    this.refractiveIndex = 1.15,
+    this.saturation = 1.2,
+  })  : chromaticAberration = 0,
+        lightAngle = 0,
+        lightIntensity = 0,
+        ambientStrength = 0;
+
+  /// A subtle glass effect suitable for general UI use.
+  ///
+  /// Balanced settings with moderate refraction, light blur, and
+  /// subtle lighting. A good starting point for most applications.
+  const LiquidGlassSettings.subtle({
+    this.visibility = 1.0,
+    this.glassColor = const Color.fromARGB(0, 255, 255, 255),
+    this.thickness = 12,
+    this.blur = 3,
+    this.refractiveIndex = 1.1,
+    this.saturation = 1.3,
+  })  : chromaticAberration = 0.005,
+        lightAngle = 0.5 * pi,
+        lightIntensity = 0.3,
+        ambientStrength = 0;
+
   /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
   ///
   /// This will look for the nearest ancestor [LiquidGlassLayer] or

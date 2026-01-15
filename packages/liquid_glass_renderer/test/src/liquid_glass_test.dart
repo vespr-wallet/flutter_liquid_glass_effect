@@ -83,26 +83,22 @@ void main() {
                 GoldenTestScenario(
                   name: 'wide shape radius ${radius.toStringAsFixed(0)}px',
                   child: buildWithGridPaper(
-                    LiquidGlassLayer(
+                    LiquidGlass.withOwnLayer(
                       settings: settingsWithoutLighting.copyWith(
                         thickness: 2,
                         glassColor: Colors.blue.withValues(alpha: 0.5),
                       ),
-                      child: LiquidGlassBlendGroup(
-                        child: LiquidGlass.grouped(
-                          glassContainsChild: true,
-                          shape: LiquidRoundedSuperellipse(
-                            borderRadius: radius,
-                          ),
-                          child: SizedBox.fromSize(
-                            size: const Size(400, 200),
-                            child: Container(
-                              decoration: ShapeDecoration(
-                                color: Colors.red.withValues(alpha: 0.5),
-                                shape: RoundedSuperellipseBorder(
-                                  borderRadius: BorderRadius.circular(radius),
-                                ),
-                              ),
+                      glassContainsChild: true,
+                      shape: LiquidRoundedSuperellipse(
+                        borderRadius: radius,
+                      ),
+                      child: SizedBox.fromSize(
+                        size: const Size(400, 200),
+                        child: Container(
+                          decoration: ShapeDecoration(
+                            color: Colors.red.withValues(alpha: 0.5),
+                            shape: RoundedSuperellipseBorder(
+                              borderRadius: BorderRadius.circular(radius),
                             ),
                           ),
                         ),
@@ -113,54 +109,6 @@ void main() {
             ],
           );
         },
-      );
-    });
-
-    group('merging', () {
-      goldenTest(
-        'shapes merge with different blend values',
-        fileName: 'merging_blend_values',
-        pumpBeforeTest: pumpOnce,
-        builder: () => GoldenTestGroup(
-          scenarioConstraints: testScenarioConstraints,
-          children: [
-            for (final blend in [0.0, 40.0, 80.0, 100.0])
-              GoldenTestScenario(
-                name: 'blend $blend',
-                child: buildWithGridPaper(
-                  LiquidGlassLayer(
-                    settings: settingsWithoutLighting.copyWith(
-                      blend: blend,
-                      glassColor: Colors.red.withValues(alpha: 0.5),
-                    ),
-                    child: const LiquidGlassBlendGroup(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          LiquidGlass.grouped(
-                            shape: LiquidOval(),
-                            child: SizedBox.square(dimension: 100),
-                          ),
-                          LiquidGlass.grouped(
-                            shape: LiquidRoundedRectangle(
-                              borderRadius: 20,
-                            ),
-                            child: SizedBox.square(dimension: 100),
-                          ),
-                          LiquidGlass.grouped(
-                            shape: LiquidRoundedSuperellipse(
-                              borderRadius: 20,
-                            ),
-                            child: SizedBox.square(dimension: 100),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
       );
     });
   });

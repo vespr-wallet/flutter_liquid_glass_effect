@@ -14,13 +14,11 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 import 'package:liquid_glass_renderer/src/shaders.dart';
 import 'package:meta/meta.dart';
 
-/// Represents a layer of multiple [LiquidGlass] shapes or
-/// [LiquidGlassBlendGroup]s that have shared [LiquidGlassSettings] and will be
-/// rendered together.
+/// Represents a layer of multiple [LiquidGlass] shapes that have shared
+/// [LiquidGlassSettings] and will be rendered together.
 ///
-/// If you create a [LiquidGlassLayer] with one or more [LiquidGlass] or
-/// [LiquidGlassBlendGroup] widgets, the liquid glass effect will be rendered
-/// where this layer is.
+/// If you create a [LiquidGlassLayer] with one or more [LiquidGlass] widgets,
+/// the liquid glass effect will be rendered where this layer is.
 ///
 /// Make sure not to stack any other widgets between the [LiquidGlassLayer] and
 /// the [LiquidGlass] widgets, otherwise the liquid glass effect will be behind
@@ -41,32 +39,18 @@ import 'package:meta/meta.dart';
 ///             dimension: 100,
 ///           ),
 ///         ),
-///         const SizedBox(height: 100),
-///         LiquidGlassBlendGroup(
-///          blend: 20,
-///          child: Row(
-///             children: [
-///               LiquidGlass.grouped(
-///                 shape: const LiquidOval(),
-///                 child: const SizedBox.square(
-///                   dimension: 100,
-///                 ),
-///               ),
-///               LiquidGlass.grouped(
-///                 shape: const LiquidRoundedSuperellipse(
-///                   borderRadius: 20,
-///                 ),
-///                 child: const SizedBox.square(
-///                   dimension: 100,
-///                 ),
-///               ),
-///             ],
+///         const SizedBox(height: 16),
+///         LiquidGlass(
+///           shape: const LiquidOval(),
+///           child: const SizedBox.square(
+///             dimension: 100,
 ///           ),
 ///         ),
 ///       ],
 ///     ),
 ///   );
 /// }
+/// ```
 class LiquidGlassLayer extends StatefulWidget {
   /// Creates a new [LiquidGlassLayer] with the given [child] and [settings].
   const LiquidGlassLayer({

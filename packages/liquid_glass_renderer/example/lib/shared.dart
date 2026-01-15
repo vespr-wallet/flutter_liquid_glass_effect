@@ -90,12 +90,10 @@ class ImagePageView extends HookWidget {
 class SettingsSheet extends HookWidget {
   const SettingsSheet({
     super.key,
-    required this.blendNotifier,
     required this.settingsNotifier,
     required this.lightAngleAnimation,
   });
 
-  final ValueNotifier<double> blendNotifier;
   final ValueNotifier<LiquidGlassSettings> settingsNotifier;
 
   final Animation<double> lightAngleAnimation;
@@ -111,7 +109,6 @@ class SettingsSheet extends HookWidget {
   Widget build(BuildContext context) {
     final settings = useValueListenable(settingsNotifier);
     final lightAngle = useValueListenable(lightAngleAnimation);
-    final blend = useValueListenable(blendNotifier);
 
     return LiquidStretch(
       interactionScale: 1.005,
@@ -146,21 +143,6 @@ class SettingsSheet extends HookWidget {
                           style: Theme.of(context).textTheme.headlineLarge,
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Blend Group blend:'),
-                            Text(blend.toStringAsFixed(2)),
-                          ],
-                        ),
-                        CupertinoSlider(
-                          value: blend,
-                          onChanged: (value) {
-                            blendNotifier.value = value;
-                          },
-                          min: 0,
-                          max: 200,
-                        ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [

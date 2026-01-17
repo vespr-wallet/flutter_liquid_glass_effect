@@ -249,6 +249,53 @@ class LiquidGlassSettings with EquatableMixin {
                 this.fakeGlassRefractionFrostedMultiplier,
       );
 
+  /// Linearly interpolates between two [LiquidGlassSettings].
+  ///
+  /// The [t] parameter represents the interpolation progress from 0.0 to 1.0,
+  /// where 0.0 returns [a] and 1.0 returns [b].
+  ///
+  /// Boolean properties ([frosted]) switch at t >= 0.5.
+  ///
+  /// Example:
+  /// ```dart
+  /// final settings = LiquidGlassSettings.lerp(
+  ///   LiquidGlassSettings(visibility: 0, blur: 0),
+  ///   LiquidGlassSettings(visibility: 1, blur: 10),
+  ///   0.5,
+  /// ); // visibility: 0.5, blur: 5
+  /// ```
+  static LiquidGlassSettings lerp(
+    LiquidGlassSettings a,
+    LiquidGlassSettings b,
+    double t,
+  ) {
+    return LiquidGlassSettings(
+      visibility: _lerpDouble(a.visibility, b.visibility, t),
+      glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
+      thickness: _lerpDouble(a.thickness, b.thickness, t),
+      blur: _lerpDouble(a.blur, b.blur, t),
+      chromaticAberration:
+          _lerpDouble(a.chromaticAberration, b.chromaticAberration, t),
+      lightAngle: _lerpDouble(a.lightAngle, b.lightAngle, t),
+      lightIntensity: _lerpDouble(a.lightIntensity, b.lightIntensity, t),
+      ambientStrength: _lerpDouble(a.ambientStrength, b.ambientStrength, t),
+      refractiveIndex: _lerpDouble(a.refractiveIndex, b.refractiveIndex, t),
+      saturation: _lerpDouble(a.saturation, b.saturation, t),
+      frosted: t < 0.5 ? a.frosted : b.frosted,
+      fakeGlassRefraction:
+          _lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t),
+      fakeGlassRefractionFrostedMultiplier: _lerpDouble(
+        a.fakeGlassRefractionFrostedMultiplier,
+        b.fakeGlassRefractionFrostedMultiplier,
+        t,
+      ),
+    );
+  }
+
+  static double _lerpDouble(double a, double b, double t) {
+    return a + (b - a) * t;
+  }
+
   @override
   List<Object?> get props => [
         visibility,

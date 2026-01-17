@@ -240,6 +240,11 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
+    // Update the path immediately when shape changes
+    // (performLayout only runs when size changes)
+    if (hasSize) {
+      _lastPath = _shape.getOuterPath(Offset.zero & size);
+    }
     markGeometryNeedsUpdate(force: true);
     markNeedsPaint();
   }

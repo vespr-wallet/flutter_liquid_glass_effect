@@ -6,6 +6,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/shared.dart';
 import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
+import 'package:liquid_glass_renderer_example/widgets/transition_examples.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -170,10 +171,7 @@ class BasicApp extends HookWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         CupertinoPageRoute(
-                          builder: (context) => CupertinoPageScaffold(
-                            child: SizedBox(),
-                            navigationBar: CupertinoNavigationBar.large(),
-                          ),
+                          builder: (context) => const TransitionExamplesPage(),
                         ),
                       );
                     },

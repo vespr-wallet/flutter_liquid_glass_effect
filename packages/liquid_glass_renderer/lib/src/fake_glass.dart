@@ -112,13 +112,18 @@ class FakeGlass extends StatelessWidget {
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
-    // Use local coordinates if inside a LiquidStretch (even when not actively
-    // transforming) to ensure correct refraction center calculation.
-    final isTransforming = LiquidStretchScale.isInsideStretch(context);
+    // Determine coordinate mode for refraction center:
+    // - When inside a shared layer (.inLayer), use global coordinates
+    // - When standalone (withOwnLayer), use local coordinates
+    // - During active transforms (LiquidStretch), always use local coordinates
+    final isInSharedLayer = this.settings == null;
+    final isTransforming = !isInSharedLayer ||
+        LiquidStretchScale.isCurrentlyTransforming(context);
 
     // If we are in a layer, we accept that layer's backdrop key.
-    final backdropKey =
-        this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
+    final backdropKey = isInSharedLayer
+        ? BackdropGroup.of(context)?.backdropKey
+        : null;
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
       child: RawFakeGlass(

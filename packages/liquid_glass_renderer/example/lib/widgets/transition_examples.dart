@@ -6,52 +6,117 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+/// Provides fake mode setting to descendant widgets.
+class _FakeModeScope extends InheritedWidget {
+  const _FakeModeScope({
+    required this.fake,
+    required super.child,
+  });
+
+  final bool fake;
+
+  static bool of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<_FakeModeScope>()?.fake ??
+        false;
+  }
+
+  @override
+  bool updateShouldNotify(_FakeModeScope oldWidget) => fake != oldWidget.fake;
+}
+
 /// A page showcasing various glass transition examples.
 ///
 /// Each example is isolated in its own widget for easy review.
-class TransitionExamplesPage extends StatelessWidget {
+class TransitionExamplesPage extends StatefulWidget {
   const TransitionExamplesPage({super.key});
+
+  @override
+  State<TransitionExamplesPage> createState() => _TransitionExamplesPageState();
+}
+
+class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
+  bool _fake = false;
+  Key _pageKey = UniqueKey();
+
+  void _refreshImages() {
+    setState(() {
+      _pageKey = UniqueKey();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: const CupertinoNavigationBar(
-        middle: Text('Transition Examples'),
-      ),
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: const [
-            _SectionHeader(title: 'Flat to Glass Transition'),
-            _SectionDescription(
-              text:
-                  'Transitions from a solid colored container to a glass '
-                  'effect by animating visibility, blur, and thickness.',
+      key: _pageKey,
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text('Transition Examples'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _refreshImages,
+              child: const Icon(CupertinoIcons.refresh),
             ),
-            FlatToGlassExample(),
-            SizedBox(height: 32),
-            _SectionHeader(title: 'Glass Intensity'),
-            _SectionDescription(
-              text:
-                  'Animates glass intensity from subtle to prominent by '
-                  'changing blur, thickness, and saturation.',
+            CupertinoSwitch(
+              value: _fake,
+              onChanged: (v) => setState(() => _fake = v),
             ),
-            GlassIntensityExample(),
-            SizedBox(height: 32),
-            _SectionHeader(title: 'Border Radius Animation'),
-            _SectionDescription(
-              text:
-                  'Animates the shape borderRadius from sharp (8) to '
-                  'rounded (64) using LiquidShape.lerp.',
-            ),
-            BorderRadiusAnimationExample(),
-            SizedBox(height: 32),
-            _SectionHeader(title: 'Combined Transition'),
-            _SectionDescription(
-              text: 'Combines shape, settings, and size animations together.',
-            ),
-            CombinedTransitionExample(),
           ],
+        ),
+      ),
+      child: _FakeModeScope(
+        fake: _fake,
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              Row(
+                children: [
+                  Text(
+                    _fake ? 'FakeGlass mode' : 'LiquidGlass mode',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: _fake
+                          ? CupertinoColors.systemOrange.resolveFrom(context)
+                          : CupertinoColors.systemGreen.resolveFrom(context),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const _SectionHeader(title: 'Flat to Glass Transition'),
+              const _SectionDescription(
+                text:
+                    'Transitions from a solid colored container to a glass '
+                    'effect by animating visibility, blur, and thickness.',
+              ),
+              const FlatToGlassExample(),
+              const SizedBox(height: 32),
+              const _SectionHeader(title: 'Glass Intensity'),
+              const _SectionDescription(
+                text:
+                    'Animates glass intensity from subtle to prominent by '
+                    'changing blur, thickness, and saturation.',
+              ),
+              const GlassIntensityExample(),
+              const SizedBox(height: 32),
+              const _SectionHeader(title: 'Border Radius Animation'),
+              const _SectionDescription(
+                text:
+                    'Animates the shape borderRadius from sharp (8) to '
+                    'rounded (64) using LiquidShape.lerp.',
+              ),
+              const BorderRadiusAnimationExample(),
+              const SizedBox(height: 32),
+              const _SectionHeader(title: 'Combined Transition'),
+              const _SectionDescription(
+                text: 'Combines shape, settings, and size animations together.',
+              ),
+              const CombinedTransitionExample(),
+            ],
+          ),
         ),
       ),
     );
@@ -167,6 +232,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
 
   @override
   Widget build(BuildContext context) {
+    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _isGlass
@@ -184,6 +250,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: settings,
+              fake: fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -262,6 +329,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
 
   @override
   Widget build(BuildContext context) {
+    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _intense ? 'Intense - tap for subtle' : 'Subtle - tap for intense',
@@ -277,6 +345,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: settings,
+              fake: fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -339,6 +408,7 @@ class _BorderRadiusAnimationExampleState
 
   @override
   Widget build(BuildContext context) {
+    final fake = _FakeModeScope.of(context);
     const shapeA = LiquidRoundedSuperellipse(borderRadius: 8);
     const shapeB = LiquidRoundedSuperellipse(borderRadius: 64);
 
@@ -361,6 +431,7 @@ class _BorderRadiusAnimationExampleState
                 lightIntensity: 0.6,
                 glassColor: Color.fromARGB(20, 255, 255, 255),
               ),
+              fake: fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -444,6 +515,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 
   @override
   Widget build(BuildContext context) {
+    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _expanded
@@ -467,6 +539,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
                 child: LiquidGlass.withOwnLayer(
                   shape: shape,
                   settings: settings,
+                  fake: fake,
                   child: GlassGlow(child: child!),
                 ),
               ),

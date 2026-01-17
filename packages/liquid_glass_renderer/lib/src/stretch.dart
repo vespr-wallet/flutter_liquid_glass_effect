@@ -35,6 +35,16 @@ class LiquidStretchScale extends InheritedWidget {
     return widget?.isTransforming ?? false;
   }
 
+  /// Returns whether there is any [LiquidStretchScale] ancestor present.
+  ///
+  /// This is useful for FakeGlass to know if it should use local coordinates
+  /// even when not actively transforming.
+  static bool isInsideStretch(BuildContext context) {
+    final widget =
+        context.dependOnInheritedWidgetOfExactType<LiquidStretchScale>();
+    return widget != null;
+  }
+
   @override
   bool updateShouldNotify(LiquidStretchScale oldWidget) {
     return scale != oldWidget.scale ||

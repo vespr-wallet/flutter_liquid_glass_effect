@@ -112,8 +112,9 @@ class FakeGlass extends StatelessWidget {
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
-    // Check if LiquidStretch is currently applying any transform
-    final isTransforming = LiquidStretchScale.isCurrentlyTransforming(context);
+    // Use local coordinates if inside a LiquidStretch (even when not actively
+    // transforming) to ensure correct refraction center calculation.
+    final isTransforming = LiquidStretchScale.isInsideStretch(context);
 
     // If we are in a layer, we accept that layer's backdrop key.
     final backdropKey =

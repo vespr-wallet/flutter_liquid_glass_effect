@@ -52,6 +52,11 @@ const _kSpecularOverlayFrostedMultiplier = 1.5;
 /// Alpha multiplier for blurred overlay (0.0 - 1.0)
 const _kSpecularOverlayAlpha = 1.0;
 
+// -- Saturation --
+/// Multiplier to boost saturation effect to match real glass shader.
+/// The shader-based saturation appears more pronounced, so we compensate.
+const _kSaturationMultiplier = 1.5;
+
 // -- Depth Gradient --
 /// Multiplier for gradient alpha based on light intensity
 const _kDepthGradientAlphaMultiplier = .1;
@@ -386,9 +391,13 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refractionFilter = !isAnimating && refraction > 0
         ? _createRefractionFilter(center, refraction, size)
         : null;
-    final saturationFilter = !isAnimating && settings.effectiveSaturation != 1.0
+
+    // Boost saturation to match real glass shader appearance
+    final boostedSaturation =
+        1.0 + (settings.effectiveSaturation - 1.0) * _kSaturationMultiplier;
+    final saturationFilter = !isAnimating && boostedSaturation != 1.0
         ? ui.ColorFilter.matrix(
-            _getSaturationMatrix(settings.effectiveSaturation),
+            _getSaturationMatrix(boostedSaturation),
           )
         : null;
 

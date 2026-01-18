@@ -22,14 +22,7 @@ class TransitionExamplesPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: const [
-            _Section(
-              title: 'Bouncing Glass',
-              description:
-                  'Glass element bouncing around like a DVD screensaver, '
-                  'showcasing refraction and reflection during movement.',
-              realChild: BouncingGlassExample(fake: false),
-              fakeChild: BouncingGlassExample(fake: true),
-            ),
+            _BouncingGlassSection(),
             SizedBox(height: 32),
             _Section(
               title: 'Flat to Glass Transition',
@@ -110,6 +103,64 @@ class _SectionState extends State<_Section> {
           imageId: _imageId,
           realChild: widget.realChild,
           fakeChild: widget.fakeChild,
+        ),
+      ],
+    );
+  }
+}
+
+/// Custom section for bouncing glass with frost toggle.
+class _BouncingGlassSection extends StatefulWidget {
+  const _BouncingGlassSection();
+
+  @override
+  State<_BouncingGlassSection> createState() => _BouncingGlassSectionState();
+}
+
+class _BouncingGlassSectionState extends State<_BouncingGlassSection> {
+  int _imageId = Random().nextInt(1000);
+  bool _frosted = true;
+
+  void _refreshImage() {
+    setState(() {
+      _imageId = Random().nextInt(10000);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: 'Bouncing Glass',
+          onRefresh: _refreshImage,
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Frost',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: CupertinoColors.systemGrey.resolveFrom(context),
+                ),
+              ),
+              const SizedBox(width: 4),
+              CupertinoSwitch(
+                value: _frosted,
+                onChanged: (value) => setState(() => _frosted = value),
+              ),
+            ],
+          ),
+        ),
+        const _SectionDescription(
+          text: 'Glass element bouncing around like a DVD screensaver, '
+              'showcasing refraction and reflection during movement.',
+        ),
+        _ExampleRow(
+          imageId: _imageId,
+          realChild: BouncingGlassExample(fake: false, frosted: _frosted),
+          fakeChild: BouncingGlassExample(fake: true, frosted: _frosted),
         ),
       ],
     );
@@ -202,10 +253,11 @@ class _ColumnLabel extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.onRefresh});
+  const _SectionHeader({required this.title, this.onRefresh, this.trailing});
 
   final String title;
   final VoidCallback? onRefresh;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -219,6 +271,7 @@ class _SectionHeader extends StatelessWidget {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
           ),
+          if (trailing != null) trailing!,
           if (onRefresh != null)
             CupertinoButton(
               padding: EdgeInsets.zero,
@@ -670,9 +723,14 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 ///
 /// This showcases how refraction and reflection look during continuous movement.
 class BouncingGlassExample extends StatefulWidget {
-  const BouncingGlassExample({super.key, required this.fake});
+  const BouncingGlassExample({
+    super.key,
+    required this.fake,
+    this.frosted = true,
+  });
 
   final bool fake;
+  final bool frosted;
 
   @override
   State<BouncingGlassExample> createState() => _BouncingGlassExampleState();
@@ -751,6 +809,7 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
       glassHeight: _glassHeight,
       containerHeight: _containerHeight,
       fake: widget.fake,
+      frosted: widget.frosted,
       onContainerWidth: _onContainerWidth,
     );
   }
@@ -765,6 +824,7 @@ class _BouncingContainer extends StatelessWidget {
     required this.glassHeight,
     required this.containerHeight,
     required this.fake,
+    required this.frosted,
     required this.onContainerWidth,
   });
 
@@ -774,6 +834,7 @@ class _BouncingContainer extends StatelessWidget {
   final double glassHeight;
   final double containerHeight;
   final bool fake;
+  final bool frosted;
   final ValueChanged<double> onContainerWidth;
 
   @override
@@ -817,14 +878,15 @@ class _BouncingContainer extends StatelessWidget {
                   top: glassY,
                   child: LiquidGlass.withOwnLayer(
                     shape: const LiquidRoundedSuperellipse(borderRadius: 16),
-                    settings: const LiquidGlassSettings(
+                    settings: LiquidGlassSettings(
                       visibility: 1,
                       thickness: 15,
-                      blur: 6,
+                      blur: frosted ? 6 : 0,
                       lightIntensity: 0.5,
-                      glassColor: Color.fromARGB(20, 255, 255, 255),
+                      glassColor: const Color.fromARGB(20, 255, 255, 255),
                     ),
                     fake: fake,
+                    frosted: frosted,
                     child: SizedBox(
                       width: glassWidth,
                       height: glassHeight,

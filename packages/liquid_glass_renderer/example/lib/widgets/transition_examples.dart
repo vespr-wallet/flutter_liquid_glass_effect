@@ -87,8 +87,26 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
   }
 }
 
+/// Provides a shared image ID to descendant widgets.
+class _SharedImageId extends InheritedWidget {
+  const _SharedImageId({
+    required this.imageId,
+    required super.child,
+  });
+
+  final int imageId;
+
+  static int of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<_SharedImageId>()!.imageId;
+  }
+
+  @override
+  bool updateShouldNotify(_SharedImageId oldWidget) =>
+      imageId != oldWidget.imageId;
+}
+
 /// A row showing real and fake glass examples side by side.
-class _ExampleRow extends StatelessWidget {
+class _ExampleRow extends StatefulWidget {
   const _ExampleRow({
     required this.realChild,
     required this.fakeChild,
@@ -98,32 +116,48 @@ class _ExampleRow extends StatelessWidget {
   final Widget fakeChild;
 
   @override
+  State<_ExampleRow> createState() => _ExampleRowState();
+}
+
+class _ExampleRowState extends State<_ExampleRow> {
+  late final int _sharedImageId;
+
+  @override
+  void initState() {
+    super.initState();
+    _sharedImageId = Random().nextInt(1000);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ColumnLabel(text: 'Real Glass'),
-              realChild,
-            ],
+    return _SharedImageId(
+      imageId: _sharedImageId,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ColumnLabel(text: 'Real Glass'),
+                widget.realChild,
+              ],
+            ),
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 1,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _ColumnLabel(text: 'Fake Glass'),
-              fakeChild,
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 1,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ColumnLabel(text: 'Fake Glass'),
+                widget.fakeChild,
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -601,7 +635,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 // =============================================================================
 
 /// Container for examples with background and tap handling.
-class _ExampleContainer extends StatefulWidget {
+class _ExampleContainer extends StatelessWidget {
   const _ExampleContainer({
     required this.child,
     required this.label,
@@ -613,27 +647,15 @@ class _ExampleContainer extends StatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  State<_ExampleContainer> createState() => _ExampleContainerState();
-}
-
-class _ExampleContainerState extends State<_ExampleContainer> {
-  // Base random image ID for picsum.photos
-  late final int _baseImageId;
-
-  @override
-  void initState() {
-    super.initState();
-    // Generate a stable random ID based on hashCode
-    _baseImageId = Random().nextInt(1000);
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Get shared image ID from parent _ExampleRow
+    final baseImageId = _SharedImageId.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         GestureDetector(
-          onTap: widget.onTap,
+          onTap: onTap,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
             child: SizedBox(
@@ -645,7 +667,7 @@ class _ExampleContainerState extends State<_ExampleContainer> {
                   ValueListenableBuilder<int>(
                     valueListenable: _imageRefreshNotifier,
                     builder: (context, refreshCount, _) {
-                      final imageId = _baseImageId + refreshCount * 1000;
+                      final imageId = baseImageId + refreshCount * 1000;
                       return Image.network(
                         'https://picsum.photos/2000/2000?random=$imageId',
                         fit: BoxFit.cover,
@@ -667,7 +689,7 @@ class _ExampleContainerState extends State<_ExampleContainer> {
                     },
                   ),
                   // The glass widget
-                  Center(child: widget.child),
+                  Center(child: child),
                 ],
               ),
             ),
@@ -675,7 +697,7 @@ class _ExampleContainerState extends State<_ExampleContainer> {
         ),
         const SizedBox(height: 8),
         Text(
-          widget.label,
+          label,
           style: TextStyle(
             fontSize: 13,
             color: CupertinoColors.systemGrey.resolveFrom(context),

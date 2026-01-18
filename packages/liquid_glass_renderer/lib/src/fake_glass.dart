@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/stretch.dart';
 import 'package:meta/meta.dart';
 
 /// Debug toggle for FakeGlass depth gradient effect.
@@ -72,6 +73,7 @@ class FakeGlass extends StatelessWidget {
     required this.child,
     LiquidGlassSettings this.settings = const LiquidGlassSettings(),
     this.frosted,
+    this.debugLabel,
     super.key,
   });
 
@@ -81,6 +83,7 @@ class FakeGlass extends StatelessWidget {
     required this.shape,
     required this.child,
     this.frosted,
+    this.debugLabel,
     super.key,
   }) : settings = null;
 
@@ -104,15 +107,25 @@ class FakeGlass extends StatelessWidget {
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
+  /// Debug label for logging. When set, enables debug output for this instance.
+  final String? debugLabel;
+
   @override
   Widget build(BuildContext context) {
     final settings = this.settings ?? LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
+    // Check if we're inside an active transform (e.g., LiquidStretch drag)
+    final isTransforming = LiquidStretchScale.isCurrentlyTransforming(context);
+
     // If we are in a layer, we accept that layer's backdrop key.
-    final backdropKey =
-        this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
+    // BUT: if transforms are active, don't use shared backdrop — it causes
+    // coordinate space issues. Use own backdrop instead (always works with local coords).
+    final backdropKey = this.settings == null && !isTransforming
+        ? BackdropGroup.of(context)?.backdropKey
+        : null;
+
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
       child: RawFakeGlass(
@@ -120,6 +133,7 @@ class FakeGlass extends StatelessWidget {
         settings: settings,
         backdropKey: backdropKey,
         frosted: resolvedFrosted,
+        debugLabel: debugLabel,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(
@@ -139,6 +153,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.frosted,
     this.backdropKey,
     this.settings = const LiquidGlassSettings(),
+    this.debugLabel,
     super.key,
   });
 
@@ -150,6 +165,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final bool frosted;
 
+  final String? debugLabel;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderFakeGlass(
@@ -157,6 +174,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       settings: settings,
       backdropKey: backdropKey,
       frosted: frosted,
+      debugLabel: debugLabel,
     );
   }
 
@@ -168,7 +186,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..shape = shape
         ..settings = settings
         ..backdropKey = backdropKey
-        ..frosted = frosted;
+        ..frosted = frosted
+        ..debugLabel = debugLabel;
     }
   }
 }
@@ -179,10 +198,12 @@ class _RenderFakeGlass extends RenderProxyBox {
     required LiquidGlassSettings settings,
     required BackdropKey? backdropKey,
     required bool frosted,
+    required String? debugLabel,
   })  : _shape = shape,
         _settings = settings,
         _backdropKey = backdropKey,
         _frosted = frosted,
+        _debugLabel = debugLabel,
         _usesSharedBackdrop = backdropKey != null;
 
   LiquidShape _shape;
@@ -234,6 +255,11 @@ class _RenderFakeGlass extends RenderProxyBox {
   /// When true, filter coordinates are relative to the BackdropGroup.
   /// When false, filter coordinates are local to this widget.
   bool _usesSharedBackdrop;
+
+  String? _debugLabel;
+  set debugLabel(String? value) {
+    _debugLabel = value;
+  }
 
   bool _frosted;
   bool get frosted => _frosted;
@@ -343,11 +369,10 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refraction = _frosted
         ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
         : baseRefraction;
-    // Filter center coordinate space depends on backdrop sharing:
-    // - Shared backdrop (via BackdropGroup): coordinates relative to the group,
-    //   so we need bounds.center which includes the offset from the group.
-    // - Own backdrop (standalone): coordinates are local to this widget,
-    //   so we use size/2.
+
+    // Coordinate space depends on backdrop mode:
+    // - Shared backdrop (static): coordinates in BackdropGroup space
+    // - Own backdrop (standalone or during transforms): local coordinates
     final center = _usesSharedBackdrop
         ? bounds.center
         : Offset(size.width / 2, size.height / 2);

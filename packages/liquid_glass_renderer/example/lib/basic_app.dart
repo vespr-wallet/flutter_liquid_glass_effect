@@ -90,6 +90,7 @@ class BasicApp extends HookWidget {
                             LiquidStretch(
                               child: LiquidGlass(
                                 frosted: false,
+                                debugLabel: 'noFrost',
                                 shape: LiquidRoundedSuperellipse(
                                   borderRadius: 20,
                                 ),

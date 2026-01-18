@@ -35,6 +35,7 @@ class LiquidGlass extends StatelessWidget {
     this.frosted,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
+    this.debugLabel,
     super.key,
   }) : ownLayerConfig = null;
 
@@ -54,6 +55,7 @@ class LiquidGlass extends StatelessWidget {
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
+    this.debugLabel,
   }) : ownLayerConfig = (settings, fake);
 
   /// The child of this widget.
@@ -93,6 +95,9 @@ class LiquidGlass extends StatelessWidget {
   /// The settings for this glass if it is supposed to create its own layer.
   final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
 
+  /// Debug label for logging. When set, enables debug output for FakeGlass.
+  final String? debugLabel;
+
   @override
   Widget build(BuildContext context) {
     // If we have our own layer config, we create our own layer.
@@ -102,6 +107,7 @@ class LiquidGlass extends StatelessWidget {
           shape: shape,
           settings: settings,
           frosted: frosted,
+          debugLabel: debugLabel,
           child: child,
         );
       }
@@ -118,6 +124,7 @@ class LiquidGlass extends StatelessWidget {
       return FakeGlass.inLayer(
         shape: shape,
         frosted: frosted,
+        debugLabel: debugLabel,
         child: child,
       );
     }

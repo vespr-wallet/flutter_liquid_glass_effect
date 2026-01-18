@@ -182,7 +182,8 @@ class _RenderFakeGlass extends RenderProxyBox {
   })  : _shape = shape,
         _settings = settings,
         _backdropKey = backdropKey,
-        _frosted = frosted;
+        _frosted = frosted,
+        _usesSharedBackdrop = backdropKey != null;
 
   LiquidShape _shape;
   LiquidShape get shape => _shape;
@@ -225,8 +226,14 @@ class _RenderFakeGlass extends RenderProxyBox {
   set backdropKey(BackdropKey? value) {
     if (_backdropKey == value) return;
     _backdropKey = value;
+    _usesSharedBackdrop = value != null;
     markNeedsPaint();
   }
+
+  /// Whether this FakeGlass uses a shared backdrop (via BackdropGroup).
+  /// When true, filter coordinates are relative to the BackdropGroup.
+  /// When false, filter coordinates are local to this widget.
+  bool _usesSharedBackdrop;
 
   bool _frosted;
   bool get frosted => _frosted;
@@ -336,11 +343,14 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refraction = _frosted
         ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
         : baseRefraction;
-    // The filter center should be in the layer's local coordinate space.
-    // Since the BackdropFilterLayer is positioned at `offset` (via pushLayer),
-    // the center within the layer is simply size/2, not bounds.center
-    // (which would incorrectly include the offset).
-    final center = Offset(size.width / 2, size.height / 2);
+    // Filter center coordinate space depends on backdrop sharing:
+    // - Shared backdrop (via BackdropGroup): coordinates relative to the group,
+    //   so we need bounds.center which includes the offset from the group.
+    // - Own backdrop (standalone): coordinates are local to this widget,
+    //   so we use size/2.
+    final center = _usesSharedBackdrop
+        ? bounds.center
+        : Offset(size.width / 2, size.height / 2);
 
     // Skip saturation and refraction filters during animation (visibility < 1.0)
     // to avoid Impeller trembling.

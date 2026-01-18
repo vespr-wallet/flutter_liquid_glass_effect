@@ -443,6 +443,9 @@ class _RenderFakeGlass extends RenderProxyBox {
   /// The [refractionPixels] value specifies the target edge offset in pixels.
   /// Each axis is scaled independently to achieve consistent edge displacement
   /// regardless of widget aspect ratio.
+  ///
+  /// Uses magnification (scale > 1) to simulate glass lens effect where
+  /// the background appears larger/closer through the glass.
   ui.ImageFilter _createRefractionFilter(
     Offset center,
     double refractionPixels,
@@ -450,11 +453,11 @@ class _RenderFakeGlass extends RenderProxyBox {
   ) {
     // Calculate per-axis scale to achieve target pixel offset at edges.
     // For a widget of width W, to shift edges by P pixels:
-    // scaleX = 1 - P / (W / 2) = 1 - 2P / W
+    // scaleX = 1 + P / (W / 2) = 1 + 2P / W (magnification)
     final scaleX =
-        size.width > 0 ? 1.0 - (2 * refractionPixels / size.width) : 1.0;
+        size.width > 0 ? 1.0 + (2 * refractionPixels / size.width) : 1.0;
     final scaleY =
-        size.height > 0 ? 1.0 - (2 * refractionPixels / size.height) : 1.0;
+        size.height > 0 ? 1.0 + (2 * refractionPixels / size.height) : 1.0;
 
     final matrix = Matrix4.identity()
       ..translateByDouble(center.dx, center.dy, 0, 1)

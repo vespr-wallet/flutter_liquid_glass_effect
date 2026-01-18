@@ -273,6 +273,7 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
   set frosted(bool value) {
     if (_frosted == value) return;
     _frosted = value;
+    markGeometryNeedsUpdate(force: true);
     markNeedsPaint();
   }
 

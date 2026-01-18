@@ -21,42 +21,59 @@ class TransitionExamplesPage extends StatelessWidget {
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
-          children: const [
-            _BouncingGlassSection(),
-            SizedBox(height: 32),
+          children: [
+            _Section(
+              title: 'Bouncing Glass',
+              description:
+                  'Glass element bouncing around like a DVD screensaver, '
+                  'showcasing refraction and reflection during movement.',
+              realChildBuilder: (frosted) =>
+                  BouncingGlassExample(fake: false, frosted: frosted),
+              fakeChildBuilder: (frosted) =>
+                  BouncingGlassExample(fake: true, frosted: frosted),
+            ),
+            const SizedBox(height: 32),
             _Section(
               title: 'Flat to Glass Transition',
               description:
                   'Transitions from a solid colored container to a glass '
                   'effect by animating visibility, blur, and thickness.',
-              realChild: FlatToGlassExample(fake: false),
-              fakeChild: FlatToGlassExample(fake: true),
+              realChildBuilder: (frosted) =>
+                  FlatToGlassExample(fake: false, frosted: frosted),
+              fakeChildBuilder: (frosted) =>
+                  FlatToGlassExample(fake: true, frosted: frosted),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             _Section(
               title: 'Glass Intensity',
               description:
                   'Animates glass intensity from subtle to prominent by '
                   'changing blur, thickness, and saturation.',
-              realChild: GlassIntensityExample(fake: false),
-              fakeChild: GlassIntensityExample(fake: true),
+              realChildBuilder: (frosted) =>
+                  GlassIntensityExample(fake: false, frosted: frosted),
+              fakeChildBuilder: (frosted) =>
+                  GlassIntensityExample(fake: true, frosted: frosted),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             _Section(
               title: 'Border Radius Animation',
               description:
                   'Animates the shape borderRadius from sharp (8) to '
                   'rounded (64) using LiquidShape.lerp.',
-              realChild: BorderRadiusAnimationExample(fake: false),
-              fakeChild: BorderRadiusAnimationExample(fake: true),
+              realChildBuilder: (frosted) =>
+                  BorderRadiusAnimationExample(fake: false, frosted: frosted),
+              fakeChildBuilder: (frosted) =>
+                  BorderRadiusAnimationExample(fake: true, frosted: frosted),
             ),
-            SizedBox(height: 32),
+            const SizedBox(height: 32),
             _Section(
               title: 'Combined Transition',
               description:
                   'Combines shape, settings, and size animations together.',
-              realChild: CombinedTransitionExample(fake: false),
-              fakeChild: CombinedTransitionExample(fake: true),
+              realChildBuilder: (frosted) =>
+                  CombinedTransitionExample(fake: false, frosted: frosted),
+              fakeChildBuilder: (frosted) =>
+                  CombinedTransitionExample(fake: true, frosted: frosted),
             ),
           ],
         ),
@@ -70,54 +87,20 @@ class _Section extends StatefulWidget {
   const _Section({
     required this.title,
     required this.description,
-    required this.realChild,
-    required this.fakeChild,
+    required this.realChildBuilder,
+    required this.fakeChildBuilder,
   });
 
   final String title;
   final String description;
-  final Widget realChild;
-  final Widget fakeChild;
+  final Widget Function(bool frosted) realChildBuilder;
+  final Widget Function(bool frosted) fakeChildBuilder;
 
   @override
   State<_Section> createState() => _SectionState();
 }
 
 class _SectionState extends State<_Section> {
-  int _imageId = Random().nextInt(1000);
-
-  void _refreshImage() {
-    setState(() {
-      _imageId = Random().nextInt(10000);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionHeader(title: widget.title, onRefresh: _refreshImage),
-        _SectionDescription(text: widget.description),
-        _ExampleRow(
-          imageId: _imageId,
-          realChild: widget.realChild,
-          fakeChild: widget.fakeChild,
-        ),
-      ],
-    );
-  }
-}
-
-/// Custom section for bouncing glass with frost toggle.
-class _BouncingGlassSection extends StatefulWidget {
-  const _BouncingGlassSection();
-
-  @override
-  State<_BouncingGlassSection> createState() => _BouncingGlassSectionState();
-}
-
-class _BouncingGlassSectionState extends State<_BouncingGlassSection> {
   int _imageId = Random().nextInt(1000);
   bool _frosted = true;
 
@@ -133,7 +116,7 @@ class _BouncingGlassSectionState extends State<_BouncingGlassSection> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
-          title: 'Bouncing Glass',
+          title: widget.title,
           onRefresh: _refreshImage,
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -153,14 +136,11 @@ class _BouncingGlassSectionState extends State<_BouncingGlassSection> {
             ],
           ),
         ),
-        const _SectionDescription(
-          text: 'Glass element bouncing around like a DVD screensaver, '
-              'showcasing refraction and reflection during movement.',
-        ),
+        _SectionDescription(text: widget.description),
         _ExampleRow(
           imageId: _imageId,
-          realChild: BouncingGlassExample(fake: false, frosted: _frosted),
-          fakeChild: BouncingGlassExample(fake: true, frosted: _frosted),
+          realChild: widget.realChildBuilder(_frosted),
+          fakeChild: widget.fakeChildBuilder(_frosted),
         ),
       ],
     );
@@ -314,9 +294,14 @@ class _SectionDescription extends StatelessWidget {
 /// The "flat" state shows a semi-transparent colored container.
 /// The "glass" state shows the full glass effect with blur and lighting.
 class FlatToGlassExample extends StatefulWidget {
-  const FlatToGlassExample({super.key, required this.fake});
+  const FlatToGlassExample({
+    super.key,
+    required this.fake,
+    this.frosted = true,
+  });
 
   final bool fake;
+  final bool frosted;
 
   @override
   State<FlatToGlassExample> createState() => _FlatToGlassExampleState();
@@ -400,8 +385,11 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
             interactionScale: 1.05, // Always scale on press
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
-              settings: settings,
+              settings: widget.frosted
+                  ? settings
+                  : settings.copyWith(blur: 0),
               fake: widget.fake,
+              frosted: widget.frosted,
               child: GlassGlow(child: child!),
             ),
           );
@@ -418,9 +406,14 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
 
 /// Demonstrates animating glass intensity from subtle to prominent.
 class GlassIntensityExample extends StatefulWidget {
-  const GlassIntensityExample({super.key, required this.fake});
+  const GlassIntensityExample({
+    super.key,
+    required this.fake,
+    this.frosted = true,
+  });
 
   final bool fake;
+  final bool frosted;
 
   @override
   State<GlassIntensityExample> createState() => _GlassIntensityExampleState();
@@ -496,8 +489,11 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
           return LiquidStretch(
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
-              settings: settings,
+              settings: widget.frosted
+                  ? settings
+                  : settings.copyWith(blur: 0),
               fake: widget.fake,
+              frosted: widget.frosted,
               child: GlassGlow(child: child!),
             ),
           );
@@ -516,9 +512,14 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
 ///
 /// Uses [LiquidShape.lerp] for same-type interpolation of border radius.
 class BorderRadiusAnimationExample extends StatefulWidget {
-  const BorderRadiusAnimationExample({super.key, required this.fake});
+  const BorderRadiusAnimationExample({
+    super.key,
+    required this.fake,
+    this.frosted = true,
+  });
 
   final bool fake;
+  final bool frosted;
 
   @override
   State<BorderRadiusAnimationExample> createState() =>
@@ -577,14 +578,15 @@ class _BorderRadiusAnimationExampleState
           return LiquidStretch(
             child: LiquidGlass.withOwnLayer(
               shape: shape,
-              settings: const LiquidGlassSettings(
+              settings: LiquidGlassSettings(
                 visibility: 1,
                 thickness: 20,
-                blur: 8,
+                blur: widget.frosted ? 8 : 0,
                 lightIntensity: 0.6,
-                glassColor: Color.fromARGB(20, 255, 255, 255),
+                glassColor: const Color.fromARGB(20, 255, 255, 255),
               ),
               fake: widget.fake,
+              frosted: widget.frosted,
               child: GlassGlow(child: child!),
             ),
           );
@@ -604,9 +606,14 @@ class _BorderRadiusAnimationExampleState
 /// This example animates both the shape (borderRadius) and settings
 /// (visibility, blur, etc.) simultaneously for a complete transformation.
 class CombinedTransitionExample extends StatefulWidget {
-  const CombinedTransitionExample({super.key, required this.fake});
+  const CombinedTransitionExample({
+    super.key,
+    required this.fake,
+    this.frosted = true,
+  });
 
   final bool fake;
+  final bool frosted;
 
   @override
   State<CombinedTransitionExample> createState() =>
@@ -692,8 +699,11 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
               child: LiquidStretch(
                 child: LiquidGlass.withOwnLayer(
                   shape: shape,
-                  settings: settings,
+                  settings: widget.frosted
+                      ? settings
+                      : settings.copyWith(blur: 0),
                   fake: widget.fake,
+                  frosted: widget.frosted,
                   child: GlassGlow(child: child!),
                 ),
               ),

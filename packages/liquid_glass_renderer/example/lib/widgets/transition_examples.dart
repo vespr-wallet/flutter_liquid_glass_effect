@@ -6,83 +6,112 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-/// Notifier for refreshing example images.
-final _imageRefreshNotifier = ValueNotifier<int>(0);
-
 /// A page showcasing various glass transition examples.
 ///
 /// Each example is isolated in its own widget for easy review.
-class TransitionExamplesPage extends StatefulWidget {
+class TransitionExamplesPage extends StatelessWidget {
   const TransitionExamplesPage({super.key});
-
-  @override
-  State<TransitionExamplesPage> createState() => _TransitionExamplesPageState();
-}
-
-class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
-  void _refreshImages() {
-    _imageRefreshNotifier.value++;
-  }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: const Text('Transition Examples'),
-        trailing: CupertinoButton(
-          padding: EdgeInsets.zero,
-          onPressed: _refreshImages,
-          child: const Icon(CupertinoIcons.refresh),
-        ),
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Transition Examples'),
       ),
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(20),
-          children: [
-            const _SectionHeader(title: 'Flat to Glass Transition'),
-            const _SectionDescription(
-              text:
+          children: const [
+            _Section(
+              title: 'Bouncing Glass',
+              description:
+                  'Glass element bouncing around like a DVD screensaver, '
+                  'showcasing refraction and reflection during movement.',
+              realChild: BouncingGlassExample(fake: false),
+              fakeChild: BouncingGlassExample(fake: true),
+            ),
+            SizedBox(height: 32),
+            _Section(
+              title: 'Flat to Glass Transition',
+              description:
                   'Transitions from a solid colored container to a glass '
                   'effect by animating visibility, blur, and thickness.',
-            ),
-            const _ExampleRow(
               realChild: FlatToGlassExample(fake: false),
               fakeChild: FlatToGlassExample(fake: true),
             ),
-            const SizedBox(height: 32),
-            const _SectionHeader(title: 'Glass Intensity'),
-            const _SectionDescription(
-              text:
+            SizedBox(height: 32),
+            _Section(
+              title: 'Glass Intensity',
+              description:
                   'Animates glass intensity from subtle to prominent by '
                   'changing blur, thickness, and saturation.',
-            ),
-            const _ExampleRow(
               realChild: GlassIntensityExample(fake: false),
               fakeChild: GlassIntensityExample(fake: true),
             ),
-            const SizedBox(height: 32),
-            const _SectionHeader(title: 'Border Radius Animation'),
-            const _SectionDescription(
-              text:
+            SizedBox(height: 32),
+            _Section(
+              title: 'Border Radius Animation',
+              description:
                   'Animates the shape borderRadius from sharp (8) to '
                   'rounded (64) using LiquidShape.lerp.',
-            ),
-            const _ExampleRow(
               realChild: BorderRadiusAnimationExample(fake: false),
               fakeChild: BorderRadiusAnimationExample(fake: true),
             ),
-            const SizedBox(height: 32),
-            const _SectionHeader(title: 'Combined Transition'),
-            const _SectionDescription(
-              text: 'Combines shape, settings, and size animations together.',
-            ),
-            const _ExampleRow(
+            SizedBox(height: 32),
+            _Section(
+              title: 'Combined Transition',
+              description:
+                  'Combines shape, settings, and size animations together.',
               realChild: CombinedTransitionExample(fake: false),
               fakeChild: CombinedTransitionExample(fake: true),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A complete section with header, description, and example row.
+class _Section extends StatefulWidget {
+  const _Section({
+    required this.title,
+    required this.description,
+    required this.realChild,
+    required this.fakeChild,
+  });
+
+  final String title;
+  final String description;
+  final Widget realChild;
+  final Widget fakeChild;
+
+  @override
+  State<_Section> createState() => _SectionState();
+}
+
+class _SectionState extends State<_Section> {
+  int _imageId = Random().nextInt(1000);
+
+  void _refreshImage() {
+    setState(() {
+      _imageId = Random().nextInt(10000);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(title: widget.title, onRefresh: _refreshImage),
+        _SectionDescription(text: widget.description),
+        _ExampleRow(
+          imageId: _imageId,
+          realChild: widget.realChild,
+          fakeChild: widget.fakeChild,
+        ),
+      ],
     );
   }
 }
@@ -106,32 +135,21 @@ class _SharedImageId extends InheritedWidget {
 }
 
 /// A row showing real and fake glass examples side by side.
-class _ExampleRow extends StatefulWidget {
+class _ExampleRow extends StatelessWidget {
   const _ExampleRow({
+    required this.imageId,
     required this.realChild,
     required this.fakeChild,
   });
 
+  final int imageId;
   final Widget realChild;
   final Widget fakeChild;
 
   @override
-  State<_ExampleRow> createState() => _ExampleRowState();
-}
-
-class _ExampleRowState extends State<_ExampleRow> {
-  late final int _sharedImageId;
-
-  @override
-  void initState() {
-    super.initState();
-    _sharedImageId = Random().nextInt(1000);
-  }
-
-  @override
   Widget build(BuildContext context) {
     return _SharedImageId(
-      imageId: _sharedImageId,
+      imageId: imageId,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -141,7 +159,7 @@ class _ExampleRowState extends State<_ExampleRow> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ColumnLabel(text: 'Real Glass'),
-                widget.realChild,
+                realChild,
               ],
             ),
           ),
@@ -152,7 +170,7 @@ class _ExampleRowState extends State<_ExampleRow> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _ColumnLabel(text: 'Fake Glass'),
-                widget.fakeChild,
+                fakeChild,
               ],
             ),
           ),
@@ -184,17 +202,31 @@ class _ColumnLabel extends StatelessWidget {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+  const _SectionHeader({required this.title, this.onRefresh});
 
   final String title;
+  final VoidCallback? onRefresh;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          if (onRefresh != null)
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(24, 24),
+              onPressed: onRefresh,
+              child: const Icon(CupertinoIcons.refresh, size: 18),
+            ),
+        ],
       ),
     );
   }
@@ -631,6 +663,168 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 }
 
 // =============================================================================
+// EXAMPLE 5: Bouncing Glass (DVD Screensaver)
+// =============================================================================
+
+/// Demonstrates a glass element bouncing around like a DVD screensaver.
+///
+/// This showcases how refraction and reflection look during continuous movement.
+class BouncingGlassExample extends StatefulWidget {
+  const BouncingGlassExample({super.key, required this.fake});
+
+  final bool fake;
+
+  @override
+  State<BouncingGlassExample> createState() => _BouncingGlassExampleState();
+}
+
+class _BouncingGlassExampleState extends State<BouncingGlassExample>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  // Position and velocity
+  double _x = 20;
+  double _y = 20;
+  double _vx = 1.5; // velocity in x direction
+  double _vy = 1.0; // velocity in y direction
+
+  // Glass dimensions
+  static const double _glassWidth = 80;
+  static const double _glassHeight = 50;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    )..repeat();
+    _controller.addListener(_updatePosition);
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_updatePosition);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _updatePosition() {
+    setState(() {
+      // Get container bounds from context if available
+      final containerWidth = 180.0 - _glassWidth; // approximate
+      final containerHeight = 180.0 - _glassHeight;
+
+      // Update position
+      _x += _vx;
+      _y += _vy;
+
+      // Bounce off walls
+      if (_x <= 0 || _x >= containerWidth) {
+        _vx = -_vx;
+        _x = _x.clamp(0, containerWidth);
+      }
+      if (_y <= 0 || _y >= containerHeight) {
+        _vy = -_vy;
+        _y = _y.clamp(0, containerHeight);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _BouncingContainer(
+      glassX: _x,
+      glassY: _y,
+      glassWidth: _glassWidth,
+      glassHeight: _glassHeight,
+      fake: widget.fake,
+    );
+  }
+}
+
+/// Container for the bouncing glass example that fills the available space.
+class _BouncingContainer extends StatelessWidget {
+  const _BouncingContainer({
+    required this.glassX,
+    required this.glassY,
+    required this.glassWidth,
+    required this.glassHeight,
+    required this.fake,
+  });
+
+  final double glassX;
+  final double glassY;
+  final double glassWidth;
+  final double glassHeight;
+  final bool fake;
+
+  @override
+  Widget build(BuildContext context) {
+    final imageId = _SharedImageId.of(context);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: SizedBox(
+        height: 180,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Background image
+            Image.network(
+              'https://picsum.photos/2000/2000?random=$imageId',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      CupertinoColors.systemPurple.withValues(alpha: 0.5),
+                      CupertinoColors.systemBlue.withValues(alpha: 0.5),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Bouncing glass element
+            Positioned(
+              left: glassX,
+              top: glassY,
+              child: LiquidGlass.withOwnLayer(
+                shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+                settings: const LiquidGlassSettings(
+                  visibility: 1,
+                  thickness: 15,
+                  blur: 6,
+                  lightIntensity: 0.5,
+                  glassColor: Color.fromARGB(20, 255, 255, 255),
+                ),
+                fake: fake,
+                child: SizedBox(
+                  width: glassWidth,
+                  height: glassHeight,
+                  child: const Center(
+                    child: Text(
+                      'DVD',
+                      style: TextStyle(
+                        color: CupertinoColors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // SHARED COMPONENTS
 // =============================================================================
 
@@ -648,8 +842,8 @@ class _ExampleContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get shared image ID from parent _ExampleRow
-    final baseImageId = _SharedImageId.of(context);
+    // Get shared image ID from parent _Section
+    final imageId = _SharedImageId.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -663,30 +857,22 @@ class _ExampleContainer extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Background image - refreshes when notifier changes
-                  ValueListenableBuilder<int>(
-                    valueListenable: _imageRefreshNotifier,
-                    builder: (context, refreshCount, _) {
-                      final imageId = baseImageId + refreshCount * 1000;
-                      return Image.network(
-                        'https://picsum.photos/2000/2000?random=$imageId',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stack) => Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                CupertinoColors.systemPurple
-                                    .withValues(alpha: 0.5),
-                                CupertinoColors.systemBlue
-                                    .withValues(alpha: 0.5),
-                              ],
-                            ),
-                          ),
+                  // Background image
+                  Image.network(
+                    'https://picsum.photos/2000/2000?random=$imageId',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) => Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            CupertinoColors.systemPurple.withValues(alpha: 0.5),
+                            CupertinoColors.systemBlue.withValues(alpha: 0.5),
+                          ],
                         ),
-                      );
-                    },
+                      ),
+                    ),
                   ),
                   // The glass widget
                   Center(child: child),

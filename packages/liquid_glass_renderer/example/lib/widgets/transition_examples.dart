@@ -189,7 +189,8 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
     blur: 0, // No blur
     lightIntensity: 0, // No specular
     saturation: 1.0, // Normal saturation
-    glassColor: Color.fromARGB(60, 150, 150, 200), // Visible tint
+    fakeGlassRefraction: 0, // No refraction for FakeGlass
+    glassColor: Color.fromARGB(0, 0, 0, 0), // Fully transparent
   );
 
   // Glass state: full glass effect
@@ -241,12 +242,16 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
       child: AnimatedBuilder(
         animation: _animation,
         builder: (context, child) {
+          final t = _animation.value;
           final settings = LiquidGlassSettings.lerp(
             _flatSettings,
             _glassSettings,
-            _animation.value,
+            t,
           );
+          // Disable stretch when flat (t=0), enable when glass (t=1)
           return LiquidStretch(
+            stretch: t * 0.5, // 0 when flat, 0.5 when glass
+            interactionScale: 1.05, // Always scale on press
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: settings,
@@ -540,6 +545,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
                   shape: shape,
                   settings: settings,
                   fake: fake,
+                  debugLabel: 'CombinedTransitionExample',
                   child: GlassGlow(child: child!),
                 ),
               ),

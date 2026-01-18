@@ -826,7 +826,7 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
 }
 
 /// Container for the bouncing glass example that fills the available space.
-class _BouncingContainer extends StatelessWidget {
+class _BouncingContainer extends StatefulWidget {
   const _BouncingContainer({
     required this.glassX,
     required this.glassY,
@@ -848,19 +848,29 @@ class _BouncingContainer extends StatelessWidget {
   final ValueChanged<double> onContainerWidth;
 
   @override
+  State<_BouncingContainer> createState() => _BouncingContainerState();
+}
+
+class _BouncingContainerState extends State<_BouncingContainer> {
+  double? _lastWidth;
+
+  @override
   Widget build(BuildContext context) {
     final imageId = _SharedImageId.of(context);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: containerHeight,
+        height: widget.containerHeight,
         child: LayoutBuilder(
           builder: (context, constraints) {
-            // Report container width to parent
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              onContainerWidth(constraints.maxWidth);
-            });
+            // Only notify parent when width actually changes
+            if (_lastWidth != constraints.maxWidth) {
+              _lastWidth = constraints.maxWidth;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                widget.onContainerWidth(constraints.maxWidth);
+              });
+            }
 
             return Stack(
               fit: StackFit.expand,
@@ -884,22 +894,22 @@ class _BouncingContainer extends StatelessWidget {
                 ),
                 // Bouncing glass element
                 Positioned(
-                  left: glassX,
-                  top: glassY,
+                  left: widget.glassX,
+                  top: widget.glassY,
                   child: LiquidGlass.withOwnLayer(
                     shape: const LiquidRoundedSuperellipse(borderRadius: 16),
                     settings: LiquidGlassSettings(
                       visibility: 1,
                       thickness: 15,
-                      blur: frosted ? 6 : 0,
+                      blur: widget.frosted ? 6 : 0,
                       lightIntensity: 0.5,
                       glassColor: const Color.fromARGB(20, 255, 255, 255),
                     ),
-                    fake: fake,
-                    frosted: frosted,
+                    fake: widget.fake,
+                    frosted: widget.frosted,
                     child: SizedBox(
-                      width: glassWidth,
-                      height: glassHeight,
+                      width: widget.glassWidth,
+                      height: widget.glassHeight,
                       child: const Center(
                         child: Text(
                           'DVD',

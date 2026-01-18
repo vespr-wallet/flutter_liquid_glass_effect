@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
@@ -270,30 +271,26 @@ class LiquidGlassSettings with EquatableMixin {
     double t,
   ) {
     return LiquidGlassSettings(
-      visibility: _lerpDouble(a.visibility, b.visibility, t),
+      visibility: ui.lerpDouble(a.visibility, b.visibility, t)!,
       glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
-      thickness: _lerpDouble(a.thickness, b.thickness, t),
-      blur: _lerpDouble(a.blur, b.blur, t),
+      thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
+      blur: ui.lerpDouble(a.blur, b.blur, t)!,
       chromaticAberration:
-          _lerpDouble(a.chromaticAberration, b.chromaticAberration, t),
-      lightAngle: _lerpDouble(a.lightAngle, b.lightAngle, t),
-      lightIntensity: _lerpDouble(a.lightIntensity, b.lightIntensity, t),
-      ambientStrength: _lerpDouble(a.ambientStrength, b.ambientStrength, t),
-      refractiveIndex: _lerpDouble(a.refractiveIndex, b.refractiveIndex, t),
-      saturation: _lerpDouble(a.saturation, b.saturation, t),
+          ui.lerpDouble(a.chromaticAberration, b.chromaticAberration, t)!,
+      lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,
+      lightIntensity: ui.lerpDouble(a.lightIntensity, b.lightIntensity, t)!,
+      ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
+      refractiveIndex: ui.lerpDouble(a.refractiveIndex, b.refractiveIndex, t)!,
+      saturation: ui.lerpDouble(a.saturation, b.saturation, t)!,
       frosted: t < 0.5 ? a.frosted : b.frosted,
       fakeGlassRefraction:
-          _lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t),
-      fakeGlassRefractionFrostedMultiplier: _lerpDouble(
+          ui.lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t)!,
+      fakeGlassRefractionFrostedMultiplier: ui.lerpDouble(
         a.fakeGlassRefractionFrostedMultiplier,
         b.fakeGlassRefractionFrostedMultiplier,
         t,
-      ),
+      )!,
     );
-  }
-
-  static double _lerpDouble(double a, double b, double t) {
-    return a + (b - a) * t;
   }
 
   @override

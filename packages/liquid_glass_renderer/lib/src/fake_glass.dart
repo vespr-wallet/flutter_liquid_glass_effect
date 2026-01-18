@@ -6,8 +6,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-// ignore: implementation_imports
-import 'package:liquid_glass_renderer/src/stretch.dart' show LiquidStretchScale;
 import 'package:meta/meta.dart';
 
 /// Debug toggle for FakeGlass depth gradient effect.
@@ -112,18 +110,9 @@ class FakeGlass extends StatelessWidget {
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
-    // Determine coordinate mode for refraction center:
-    // - When inside a shared layer (.inLayer), use global coordinates
-    // - When standalone (withOwnLayer), use local coordinates
-    // - During active transforms (LiquidStretch), always use local coordinates
-    final isInSharedLayer = this.settings == null;
-    final isTransforming = !isInSharedLayer ||
-        LiquidStretchScale.isCurrentlyTransforming(context);
-
     // If we are in a layer, we accept that layer's backdrop key.
-    final backdropKey = isInSharedLayer
-        ? BackdropGroup.of(context)?.backdropKey
-        : null;
+    final backdropKey =
+        this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
       child: RawFakeGlass(
@@ -131,7 +120,6 @@ class FakeGlass extends StatelessWidget {
         settings: settings,
         backdropKey: backdropKey,
         frosted: resolvedFrosted,
-        isTransforming: isTransforming,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(
@@ -149,7 +137,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.shape,
     required super.child,
     required this.frosted,
-    required this.isTransforming,
     this.backdropKey,
     this.settings = const LiquidGlassSettings(),
     super.key,
@@ -163,8 +150,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final bool frosted;
 
-  final bool isTransforming;
-
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderFakeGlass(
@@ -172,7 +157,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       settings: settings,
       backdropKey: backdropKey,
       frosted: frosted,
-      isTransforming: isTransforming,
     );
   }
 
@@ -184,8 +168,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..shape = shape
         ..settings = settings
         ..backdropKey = backdropKey
-        ..frosted = frosted
-        ..isTransforming = isTransforming;
+        ..frosted = frosted;
     }
   }
 }
@@ -196,12 +179,10 @@ class _RenderFakeGlass extends RenderProxyBox {
     required LiquidGlassSettings settings,
     required BackdropKey? backdropKey,
     required bool frosted,
-    required bool isTransforming,
   })  : _shape = shape,
         _settings = settings,
         _backdropKey = backdropKey,
-        _frosted = frosted,
-        _isTransforming = isTransforming;
+        _frosted = frosted;
 
   LiquidShape _shape;
   LiquidShape get shape => _shape;
@@ -252,14 +233,6 @@ class _RenderFakeGlass extends RenderProxyBox {
   set frosted(bool value) {
     if (_frosted == value) return;
     _frosted = value;
-    markNeedsPaint();
-  }
-
-  bool _isTransforming;
-  bool get isTransforming => _isTransforming;
-  set isTransforming(bool value) {
-    if (_isTransforming == value) return;
-    _isTransforming = value;
     markNeedsPaint();
   }
 
@@ -363,11 +336,11 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refraction = _frosted
         ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
         : baseRefraction;
-    // Compensate for LiquidStretch transform.
-    // - When not transforming (static): bounds.center works
-    // - When transforming (scale or stretch active): localCenter works
-    final localCenter = Offset(size.width / 2, size.height / 2);
-    final center = _isTransforming ? localCenter : bounds.center;
+    // The filter center should be in the layer's local coordinate space.
+    // Since the BackdropFilterLayer is positioned at `offset` (via pushLayer),
+    // the center within the layer is simply size/2, not bounds.center
+    // (which would incorrectly include the offset).
+    final center = Offset(size.width / 2, size.height / 2);
 
     // Skip saturation and refraction filters during animation (visibility < 1.0)
     // to avoid Impeller trembling.

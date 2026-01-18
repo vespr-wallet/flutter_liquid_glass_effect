@@ -682,15 +682,19 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  // Position and velocity
+  // Position and velocity (1/3 of original speed)
   double _x = 20;
   double _y = 20;
-  double _vx = 1.5; // velocity in x direction
-  double _vy = 1.0; // velocity in y direction
+  double _vx = 0.5; // velocity in x direction
+  double _vy = 0.33; // velocity in y direction
 
   // Glass dimensions
   static const double _glassWidth = 80;
   static const double _glassHeight = 50;
+  static const double _containerHeight = 180;
+
+  // Container width (updated by LayoutBuilder)
+  double _containerWidth = 200;
 
   @override
   void initState() {
@@ -711,24 +715,31 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
 
   void _updatePosition() {
     setState(() {
-      // Get container bounds from context if available
-      final containerWidth = 180.0 - _glassWidth; // approximate
-      final containerHeight = 180.0 - _glassHeight;
+      final maxX = _containerWidth - _glassWidth;
+      final maxY = _containerHeight - _glassHeight;
 
       // Update position
       _x += _vx;
       _y += _vy;
 
       // Bounce off walls
-      if (_x <= 0 || _x >= containerWidth) {
+      if (_x <= 0 || _x >= maxX) {
         _vx = -_vx;
-        _x = _x.clamp(0, containerWidth);
+        _x = _x.clamp(0, maxX);
       }
-      if (_y <= 0 || _y >= containerHeight) {
+      if (_y <= 0 || _y >= maxY) {
         _vy = -_vy;
-        _y = _y.clamp(0, containerHeight);
+        _y = _y.clamp(0, maxY);
       }
     });
+  }
+
+  void _onContainerWidth(double width) {
+    if (width != _containerWidth) {
+      _containerWidth = width;
+      // Clamp position if container shrunk
+      _x = _x.clamp(0, width - _glassWidth);
+    }
   }
 
   @override
@@ -738,7 +749,9 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
       glassY: _y,
       glassWidth: _glassWidth,
       glassHeight: _glassHeight,
+      containerHeight: _containerHeight,
       fake: widget.fake,
+      onContainerWidth: _onContainerWidth,
     );
   }
 }
@@ -750,14 +763,18 @@ class _BouncingContainer extends StatelessWidget {
     required this.glassY,
     required this.glassWidth,
     required this.glassHeight,
+    required this.containerHeight,
     required this.fake,
+    required this.onContainerWidth,
   });
 
   final double glassX;
   final double glassY;
   final double glassWidth;
   final double glassHeight;
+  final double containerHeight;
   final bool fake;
+  final ValueChanged<double> onContainerWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -766,58 +783,67 @@ class _BouncingContainer extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        height: 180,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Background image
-            Image.network(
-              'https://picsum.photos/2000/2000?random=$imageId',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stack) => Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      CupertinoColors.systemPurple.withValues(alpha: 0.5),
-                      CupertinoColors.systemBlue.withValues(alpha: 0.5),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Bouncing glass element
-            Positioned(
-              left: glassX,
-              top: glassY,
-              child: LiquidGlass.withOwnLayer(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 16),
-                settings: const LiquidGlassSettings(
-                  visibility: 1,
-                  thickness: 15,
-                  blur: 6,
-                  lightIntensity: 0.5,
-                  glassColor: Color.fromARGB(20, 255, 255, 255),
-                ),
-                fake: fake,
-                child: SizedBox(
-                  width: glassWidth,
-                  height: glassHeight,
-                  child: const Center(
-                    child: Text(
-                      'DVD',
-                      style: TextStyle(
-                        color: CupertinoColors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
+        height: containerHeight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Report container width to parent
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              onContainerWidth(constraints.maxWidth);
+            });
+
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background image
+                Image.network(
+                  'https://picsum.photos/2000/2000?random=$imageId',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          CupertinoColors.systemPurple.withValues(alpha: 0.5),
+                          CupertinoColors.systemBlue.withValues(alpha: 0.5),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
-            ),
-          ],
+                // Bouncing glass element
+                Positioned(
+                  left: glassX,
+                  top: glassY,
+                  child: LiquidGlass.withOwnLayer(
+                    shape: const LiquidRoundedSuperellipse(borderRadius: 16),
+                    settings: const LiquidGlassSettings(
+                      visibility: 1,
+                      thickness: 15,
+                      blur: 6,
+                      lightIntensity: 0.5,
+                      glassColor: Color.fromARGB(20, 255, 255, 255),
+                    ),
+                    fake: fake,
+                    child: SizedBox(
+                      width: glassWidth,
+                      height: glassHeight,
+                      child: const Center(
+                        child: Text(
+                          'DVD',
+                          style: TextStyle(
+                            color: CupertinoColors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

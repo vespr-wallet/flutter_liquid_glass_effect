@@ -4,20 +4,19 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_renderer/src/shaders.dart';
 import 'package:meta/meta.dart';
 
 /// A liquid glass shape.
 ///
-/// To render liquid glass, you probably want to wrap this in a
-/// [LiquidGlassLayer], where the glass effect will be rendered.
-///
-/// This can either create a single shape, or be blended together with other
-/// shapes in a parent [LiquidGlassBlendGroup] by using the
-/// [LiquidGlass.grouped] constructor.
+/// To render liquid glass, you must wrap this in a [LiquidGlassLayer],
+/// where the glass effect will be rendered.
 ///
 /// If you only need a single shape with its own settings, you can also use the
 /// [LiquidGlass.withOwnLayer] constructor, which will create its own
@@ -33,27 +32,11 @@ class LiquidGlass extends StatelessWidget {
   const LiquidGlass({
     required this.child,
     required this.shape,
+    this.frosted,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     super.key,
-  })  : grouped = false,
-        blendGroupLink = null,
-        ownLayerConfig = null;
-
-  /// Creates a new [LiquidGlass] that is part of a [LiquidGlassBlendGroup].
-  ///
-  /// This will expect a parent [LiquidGlassBlendGroup] to be present in the
-  /// widget tree, as well as a parent [LiquidGlassLayer] above that, where the
-  /// result will be rendered.
-  const LiquidGlass.grouped({
-    required this.child,
-    required this.shape,
-    super.key,
-    this.glassContainsChild = false,
-    this.clipBehavior = Clip.hardEdge,
-    this.blendGroupLink,
-  })  : ownLayerConfig = null,
-        grouped = true;
+  }) : ownLayerConfig = null;
 
   /// Creates a new [LiquidGlass] that creates its own [LiquidGlassLayer].
   ///
@@ -67,12 +50,11 @@ class LiquidGlass extends StatelessWidget {
     required this.shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
     bool fake = false,
+    this.frosted,
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
-    this.blendGroupLink,
-  })  : ownLayerConfig = (settings, fake),
-        grouped = false;
+  }) : ownLayerConfig = (settings, fake);
 
   /// The child of this widget.
   ///
@@ -97,14 +79,16 @@ class LiquidGlass extends StatelessWidget {
 
   /// The clip behavior of this glass.
   ///
-  /// Defaults to [Clip.none], so [child] will not be clipped.
+  /// Defaults to [Clip.hardEdge], so [child] will be clipped to the shape.
   final Clip clipBehavior;
 
-  /// Whether this glass is part of a blend group.
-  final bool grouped;
-
-  /// The link to this glass's blend group if it is part of one.
-  final GlassGroupLink? blendGroupLink;
+  /// Whether this glass shape should apply backdrop blur (frosted).
+  ///
+  /// When true, the background behind this shape will be blurred.
+  /// When false, only refraction is applied (clear glass).
+  ///
+  /// If null, uses the default from [LiquidGlassSettings.frosted].
+  final bool? frosted;
 
   /// The settings for this glass if it is supposed to create its own layer.
   final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
@@ -117,68 +101,55 @@ class LiquidGlass extends StatelessWidget {
         return FakeGlass(
           shape: shape,
           settings: settings,
+          frosted: frosted,
           child: child,
         );
       }
 
       return LiquidGlassLayer(
         settings: settings,
-        child: LiquidGlassBlendGroup(
-          blend: 0,
-          child: Builder(
-            builder: _buildContent,
-          ),
-        ),
+        child: Builder(builder: _buildGlassContent),
       );
     }
 
-    final fake = LiquidGlassRenderScope.of(context).useFake;
+    final useFake = LiquidGlassRenderScope.of(context).useFake;
 
-    if (fake) {
+    if (useFake) {
       return FakeGlass.inLayer(
         shape: shape,
+        frosted: frosted,
         child: child,
       );
     }
 
-    final blendGroupLink = grouped
-        ? this.blendGroupLink ?? LiquidGlassBlendGroup.maybeOf(context)
-        : null;
-
-    if (blendGroupLink == null) {
-      // For now we create our own blend group until we support non-blended
-      // geometry generation
-      return LiquidGlassBlendGroup(
-        blend: 0,
-        child: Builder(
-          builder: (context) => _buildContent(
-            context,
-            LiquidGlassBlendGroup.of(context),
-          ),
-        ),
-      );
-    }
-
-    return _buildContent(
-      context,
-      blendGroupLink,
-    );
+    return _buildGlassContent(context);
   }
 
-  Widget _buildContent(BuildContext context, [GlassGroupLink? blendGroupLink]) {
-    final settings = LiquidGlassSettings.of(context);
-
+  Widget _buildGlassContent(BuildContext context) {
     if (!ImageFilter.isShaderFilterSupported) {
       return FakeGlass.inLayer(
         shape: shape,
+        frosted: frosted,
         child: child,
       );
     }
 
-    return _RawLiquidGlass(
-      blendGroupLink: blendGroupLink ?? LiquidGlassBlendGroup.of(context),
-      shape: shape,
-      glassContainsChild: glassContainsChild,
+    final settings = LiquidGlassSettings.of(context);
+    // Resolve frosted: use widget value if provided, otherwise use settings
+    final resolvedFrosted = frosted ?? settings.frosted;
+
+    return ShaderBuilder(
+      (context, shader, builtChild) => _RawLiquidGlass(
+        shader: shader,
+        renderLink: InheritedGeometryRenderLink.of(context)!,
+        settings: settings,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        shape: shape,
+        glassContainsChild: glassContainsChild,
+        frosted: resolvedFrosted,
+        child: builtChild,
+      ),
+      assetKey: ShaderKeys.blendedGeometry,
       child: ClipPath(
         clipper: ShapeBorderClipper(shape: shape),
         clipBehavior: clipBehavior,
@@ -196,149 +167,214 @@ class LiquidGlass extends StatelessWidget {
 class _RawLiquidGlass extends SingleChildRenderObjectWidget {
   const _RawLiquidGlass({
     required super.child,
+    required this.shader,
+    required this.renderLink,
+    required this.settings,
+    required this.devicePixelRatio,
     required this.shape,
     required this.glassContainsChild,
-    required this.blendGroupLink,
+    required this.frosted,
   });
 
+  final FragmentShader shader;
+  final GeometryRenderLink renderLink;
+  final LiquidGlassSettings settings;
+  final double devicePixelRatio;
   final LiquidShape shape;
-
   final bool glassContainsChild;
-
-  final GlassGroupLink? blendGroupLink;
+  final bool frosted;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return RenderLiquidGlass(
+    return RenderLiquidGlassSingleShape(
+      geometryShader: shader,
+      renderLink: renderLink,
+      settings: settings,
+      devicePixelRatio: devicePixelRatio,
       shape: shape,
       glassContainsChild: glassContainsChild,
-      blendGroupLink: blendGroupLink,
+      frosted: frosted,
     );
   }
 
   @override
   void updateRenderObject(
     BuildContext context,
-    RenderLiquidGlass renderObject,
+    RenderLiquidGlassSingleShape renderObject,
   ) {
     renderObject
+      ..renderLink = renderLink
+      ..settings = settings
+      ..devicePixelRatio = devicePixelRatio
       ..shape = shape
       ..glassContainsChild = glassContainsChild
-      ..blendGroupLink = blendGroupLink;
+      ..frosted = frosted;
   }
 }
 
+/// Render object for a single liquid glass shape.
+///
+/// Each shape independently manages its own geometry rendering and caching.
+/// This provides better performance than the previous blend group approach,
+/// as moving one shape no longer forces other shapes to re-render.
 @internal
-class RenderLiquidGlass extends RenderProxyBox
-    with TransformTrackingRenderObjectMixin {
-  RenderLiquidGlass({
+class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
+    with TransformTrackingRenderObjectMixin, LiquidGlassShapeMixin {
+  /// Creates a new [RenderLiquidGlassSingleShape].
+  RenderLiquidGlassSingleShape({
+    required super.renderLink,
+    required super.geometryShader,
+    required super.settings,
+    required super.devicePixelRatio,
     required LiquidShape shape,
     required bool glassContainsChild,
-    required GlassGroupLink? blendGroupLink,
+    required bool frosted,
   })  : _shape = shape,
         _glassContainsChild = glassContainsChild,
-        _blendGroupLink = blendGroupLink;
+        _frosted = frosted;
 
-  late LiquidShape _shape;
+  LiquidShape _shape;
+
+  /// The shape of this glass.
   LiquidShape get shape => _shape;
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
+    markGeometryNeedsUpdate(force: true);
     markNeedsPaint();
-    _updateBlendGroupLink();
   }
 
-  bool _glassContainsChild = true;
+  bool _glassContainsChild;
+
+  /// Whether the child is rendered inside the glass.
   bool get glassContainsChild => _glassContainsChild;
   set glassContainsChild(bool value) {
     if (_glassContainsChild == value) return;
     _glassContainsChild = value;
-    _updateBlendGroupLink();
+    markNeedsPaint();
   }
 
-  GlassGroupLink? _blendGroupLink;
-  set blendGroupLink(GlassGroupLink? value) {
-    if (_blendGroupLink == value) return;
-    _unregisterFromParentLayer();
-    _blendGroupLink = value;
-    _registerWithLink();
-  }
+  bool _frosted;
 
-  final transformLayerHandle = LayerHandle<TransformLayer>();
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _registerWithLink();
-  }
-
-  @override
-  void detach() {
-    _unregisterFromParentLayer();
-    transformLayerHandle.layer = null;
-    super.detach();
-  }
-
-  void _registerWithLink() {
-    if (_blendGroupLink != null) {
-      _blendGroupLink!.registerShape(
-        this,
-        _shape,
-        glassContainsChild: _glassContainsChild,
-      );
-    }
-  }
-
-  void _unregisterFromParentLayer() {
-    _blendGroupLink?.unregisterShape(this);
-  }
-
-  void _updateBlendGroupLink() {
-    _blendGroupLink?.updateShape(
-      this,
-      _shape,
-      glassContainsChild: _glassContainsChild,
-    );
+  /// Whether this shape should apply backdrop blur (frosted glass).
+  bool get frosted => _frosted;
+  set frosted(bool value) {
+    if (_frosted == value) return;
+    _frosted = value;
+    markNeedsPaint();
   }
 
   late Path _lastPath;
 
+  final _transformLayerHandle = LayerHandle<TransformLayer>();
+
   @override
   void performLayout() {
     super.performLayout();
-    // Notify parent layer when our layout changes
-    _lastPath = shape.getOuterPath(Offset.zero & size);
-    _blendGroupLink?.notifyShapeLayoutChanged(this);
+    _lastPath = _shape.getOuterPath(Offset.zero & size);
+    // Mark geometry needs update when layout changes
+    markGeometryNeedsUpdate();
   }
 
   @override
   void onTransformChanged() {
-    _blendGroupLink?.notifyShapeLayoutChanged(this);
+    markGeometryNeedsUpdate();
+    markNeedsPaint();
   }
 
   @override
-  // ignore: must_call_super
-  void paint(PaintingContext context, Offset offset) {
-    setUpLayer(offset);
+  void dispose() {
+    _transformLayerHandle.layer = null;
+    super.dispose();
   }
 
-  void paintFromLayer(
-    PaintingContext context,
-    Matrix4 transform,
-    Offset offset,
+  // MARK: RenderLiquidGlassGeometry implementation
+
+  @override
+  void updateShaderWithSettings(
+    LiquidGlassSettings settings,
+    double devicePixelRatio,
   ) {
-    if (attached) {
-      transformLayerHandle.layer = context.pushTransform(
-        needsCompositing,
-        offset,
-        transform,
-        super.paint,
-        oldLayer: transformLayerHandle.layer,
-      );
-    }
+    geometryShader.setFloatUniforms(initialIndex: 2, (value) {
+      value.setFloats([
+        settings.refractiveIndex,
+        settings.effectiveChromaticAberration,
+        settings.effectiveThickness,
+        0.0, // blend always 0 for single shapes
+      ]);
+    });
   }
 
-  Path getPath() {
-    return _lastPath;
+  @override
+  void updateGeometryShaderShapes(List<ShapeGeometry> shapes) {
+    if (shapes.isEmpty) return;
+
+    final shapeGeo = shapes.first;
+    final center = shapeGeo.shapeBounds.center;
+    final shapeSize = shapeGeo.shapeBounds.size;
+
+    geometryShader.setFloatUniforms(initialIndex: 6, (value) {
+      value
+        ..setFloat(1) // numShapes = 1
+        ..setFloat(shapeGeo.rawShapeType.shaderIndex)
+        ..setFloat(center.dx * devicePixelRatio)
+        ..setFloat(center.dy * devicePixelRatio)
+        ..setFloat(shapeSize.width * devicePixelRatio)
+        ..setFloat(shapeSize.height * devicePixelRatio)
+        ..setFloat(shapeGeo.rawCornerRadius * devicePixelRatio);
+    });
   }
+
+  @override
+  (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
+    if (!hasSize) {
+      return (Rect.zero, [], false);
+    }
+
+    final bounds = Offset.zero & size;
+    final shapeGeometry = ShapeGeometry(
+      renderObject: this,
+      shape: _shape,
+      glassContainsChild: _glassContainsChild,
+      shapeBounds: bounds,
+      frosted: _frosted,
+    );
+
+    // Compare with cached geometry to determine if rebuild needed
+    final cached = geometry?.shapes.firstOrNull;
+    final needsUpdate = cached == null ||
+        cached.shapeBounds != bounds ||
+        cached.shape != _shape ||
+        cached.frosted != _frosted;
+
+    return (bounds, [shapeGeometry], needsUpdate);
+  }
+
+  @override
+  void paintShapeContents(
+    RenderObject from,
+    PaintingContext context,
+    Offset offset, {
+    required bool insideGlass,
+  }) {
+    if (_glassContainsChild != insideGlass) return;
+    if (!attached) return;
+
+    // Paint child with transform to the requesting render object
+    final transform = getTransformTo(from);
+    _transformLayerHandle.layer = context.pushTransform(
+      needsCompositing,
+      offset,
+      transform,
+      (context, offset) {
+        if (child != null) {
+          context.paintChild(child!, offset);
+        }
+      },
+      oldLayer: _transformLayerHandle.layer,
+    );
+  }
+
+  @override
+  Path getShapePath() => _lastPath;
 }

@@ -19,6 +19,9 @@ class LiquidGlassSettings with EquatableMixin {
     this.ambientStrength = 0,
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
+    this.frosted = true,
+    this.fakeGlassRefraction = 5.0,
+    this.fakeGlassRefractionFrostedMultiplier = 1.5,
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -33,6 +36,9 @@ class LiquidGlassSettings with EquatableMixin {
     double lightIntensity = 50,
     double lightAngle = 0.5 * pi,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
+    bool frosted = true,
+    double fakeGlassRefraction = 5.0,
+    double fakeGlassRefractionFrostedMultiplier = 2.0,
   }) : this(
           visibility: visibility,
           refractiveIndex: 1 + (refraction / 100) * 0.2,
@@ -44,7 +50,49 @@ class LiquidGlassSettings with EquatableMixin {
           ambientStrength: 0.1,
           saturation: 1.5,
           glassColor: glassColor,
+          frosted: frosted,
+          fakeGlassRefraction: fakeGlassRefraction,
+          fakeGlassRefractionFrostedMultiplier:
+              fakeGlassRefractionFrostedMultiplier,
         );
+
+  /// A minimal glass effect with no lighting or chromatic aberration.
+  ///
+  /// Good for subtle, unobtrusive glass effects where you just want
+  /// refraction and blur without decorative lighting.
+  const LiquidGlassSettings.minimal({
+    this.visibility = 1.0,
+    this.glassColor = const Color.fromARGB(0, 255, 255, 255),
+    this.thickness = 15,
+    this.blur = 4,
+    this.refractiveIndex = 1.15,
+    this.saturation = 1.2,
+    this.frosted = true,
+    this.fakeGlassRefraction = 5.0,
+    this.fakeGlassRefractionFrostedMultiplier = 2.0,
+  })  : chromaticAberration = 0,
+        lightAngle = 0,
+        lightIntensity = 0,
+        ambientStrength = 0;
+
+  /// A subtle glass effect suitable for general UI use.
+  ///
+  /// Balanced settings with moderate refraction, light blur, and
+  /// subtle lighting. A good starting point for most applications.
+  const LiquidGlassSettings.subtle({
+    this.visibility = 1.0,
+    this.glassColor = const Color.fromARGB(0, 255, 255, 255),
+    this.thickness = 12,
+    this.blur = 3,
+    this.refractiveIndex = 1.1,
+    this.saturation = 1.3,
+    this.frosted = true,
+    this.fakeGlassRefraction = 5.0,
+    this.fakeGlassRefractionFrostedMultiplier = 2.0,
+  })  : chromaticAberration = 0.005,
+        lightAngle = 0.5 * pi,
+        lightIntensity = 0.3,
+        ambientStrength = 0;
 
   /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
   ///
@@ -133,6 +181,39 @@ class LiquidGlassSettings with EquatableMixin {
   /// The effective saturation taking visibility into account.
   double get effectiveSaturation => 1 + (saturation - 1) * visibility;
 
+  /// Whether glass shapes should apply backdrop blur by default.
+  ///
+  /// When true, glass shapes will blur the background behind them (frosted).
+  /// When false, glass shapes will only apply refraction without blur (clear).
+  ///
+  /// Individual [LiquidGlass] widgets can override this per-shape.
+  /// Defaults to true.
+  final bool frosted;
+
+  /// The fake refraction edge offset in pixels used by [FakeGlass].
+  ///
+  /// This creates a non-uniform scale effect to simulate refraction when
+  /// custom shaders are not available (non-Impeller devices).
+  ///
+  /// The value specifies how many pixels the edges should appear to shift
+  /// inward. Each axis is scaled independently, so wide buttons and tall
+  /// buttons will have consistent edge displacement.
+  ///
+  /// Set to 0 to disable. This has no effect on [LiquidGlass] which uses
+  /// real shader-based refraction.
+  ///
+  /// Defaults to 5.0 pixels.
+  final double fakeGlassRefraction;
+
+  /// Multiplier applied to [fakeGlassRefraction] when the glass is frosted.
+  ///
+  /// Frosted glass typically has more pronounced refraction due to the
+  /// diffusion of light. This multiplier increases the magnification effect
+  /// when blur is applied.
+  ///
+  /// Defaults to 2.0 (double the refraction when frosted).
+  final double fakeGlassRefractionFrostedMultiplier;
+
   /// Creates a new [LiquidGlassSettings] with the given settings.
   LiquidGlassSettings copyWith({
     double? visibility,
@@ -146,6 +227,9 @@ class LiquidGlassSettings with EquatableMixin {
     double? ambientStrength,
     double? refractiveIndex,
     double? saturation,
+    bool? frosted,
+    double? fakeGlassRefraction,
+    double? fakeGlassRefractionFrostedMultiplier,
   }) =>
       LiquidGlassSettings(
         visibility: visibility ?? this.visibility,
@@ -158,6 +242,11 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength: ambientStrength ?? this.ambientStrength,
         refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
+        frosted: frosted ?? this.frosted,
+        fakeGlassRefraction: fakeGlassRefraction ?? this.fakeGlassRefraction,
+        fakeGlassRefractionFrostedMultiplier:
+            fakeGlassRefractionFrostedMultiplier ??
+                this.fakeGlassRefractionFrostedMultiplier,
       );
 
   @override
@@ -172,5 +261,8 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength,
         refractiveIndex,
         saturation,
+        frosted,
+        fakeGlassRefraction,
+        fakeGlassRefractionFrostedMultiplier,
       ];
 }

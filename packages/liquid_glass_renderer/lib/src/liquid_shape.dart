@@ -34,7 +34,12 @@ sealed class LiquidShape extends OutlinedBorder with EquatableMixin {
   List<Object?> get props => [side];
 }
 
-/// Represents a squircle shape that can be used by a [LiquidGlass] widget.
+/// A smooth, continuous-curvature rounded shape (superellipse/squircle).
+///
+/// Unlike [LiquidRoundedRectangle] which has abrupt transitions between
+/// straight edges and circular corners, this shape uses a superellipse
+/// curve that smoothly blends the corners into the edges, creating a
+/// more organic, pill-like appearance.
 ///
 /// Works like a [RoundedSuperellipseBorder].
 class LiquidRoundedSuperellipse extends LiquidShape {

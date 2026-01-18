@@ -5,8 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
@@ -32,8 +30,8 @@ enum LiquidGlassGeometryState {
 
 /// A base class for any render object that represents liquid glass geometry.
 ///
-/// This will paint to the screen normally, but use a [GlassGroupLink] to gather
-/// shape information and generate a geometry matte using the provided
+/// This manages geometry rendering and caching for liquid glass shapes.
+/// Each shape independently manages its own geometry matte using the provided
 /// [geometryShader].
 @internal
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
@@ -186,7 +184,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     final path = Path();
     for (final shape in geometries) {
       path.addPath(
-        shape.renderObject.getPath(),
+        shape.renderObject.getShapePath(),
         Offset.zero,
         matrix4: shape.shapeToGeometry?.storage,
       );
@@ -441,10 +439,19 @@ enum RawShapeType {
   }
 }
 
+/// Mixin for render objects that can provide a path for their shape.
+///
+/// This is used by [ShapeGeometry] to get the path of a shape.
+@internal
+mixin LiquidGlassShapeMixin on RenderObject {
+  /// Returns the path of this shape in local coordinates.
+  Path getShapePath();
+}
+
 /// The geometry of a single shape.
 ///
-/// Can be part of multiple blended shapes in [RenderLiquidGlassGeometry], or on
-/// its own.
+/// Used by [RenderLiquidGlassGeometry] to track shape information for
+/// geometry rendering.
 @internal
 class ShapeGeometry extends Equatable {
   ShapeGeometry({
@@ -452,6 +459,7 @@ class ShapeGeometry extends Equatable {
     required this.shape,
     required this.glassContainsChild,
     required this.shapeBounds,
+    required this.frosted,
     this.shapeToGeometry,
   })  : rawCornerRadius = _getRadiusFromGlassShape(shape),
         rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
@@ -467,7 +475,8 @@ class ShapeGeometry extends Equatable {
     }
   }
 
-  final RenderLiquidGlass renderObject;
+  /// The render object that owns this shape.
+  final LiquidGlassShapeMixin renderObject;
 
   final LiquidShape shape;
 
@@ -476,6 +485,9 @@ class ShapeGeometry extends Equatable {
   final double rawCornerRadius;
 
   final bool glassContainsChild;
+
+  /// Whether this shape should apply backdrop blur (frosted glass).
+  final bool frosted;
 
   /// Bounds in geometry-local coordinates (for painting)
   final Rect shapeBounds;
@@ -488,5 +500,6 @@ class ShapeGeometry extends Equatable {
         shape,
         glassContainsChild,
         shapeBounds,
+        frosted,
       ];
 }

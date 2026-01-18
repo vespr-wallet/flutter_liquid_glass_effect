@@ -6,23 +6,8 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
-/// Provides fake mode setting to descendant widgets.
-class _FakeModeScope extends InheritedWidget {
-  const _FakeModeScope({
-    required this.fake,
-    required super.child,
-  });
-
-  final bool fake;
-
-  static bool of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<_FakeModeScope>()?.fake ??
-        false;
-  }
-
-  @override
-  bool updateShouldNotify(_FakeModeScope oldWidget) => fake != oldWidget.fake;
-}
+/// Notifier for refreshing example images.
+final _imageRefreshNotifier = ValueNotifier<int>(0);
 
 /// A page showcasing various glass transition examples.
 ///
@@ -35,88 +20,129 @@ class TransitionExamplesPage extends StatefulWidget {
 }
 
 class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
-  bool _fake = false;
-  Key _pageKey = UniqueKey();
-
   void _refreshImages() {
-    setState(() {
-      _pageKey = UniqueKey();
-    });
+    _imageRefreshNotifier.value++;
   }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      key: _pageKey,
       navigationBar: CupertinoNavigationBar(
         middle: const Text('Transition Examples'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _refreshImages,
+          child: const Icon(CupertinoIcons.refresh),
+        ),
+      ),
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
           children: [
-            CupertinoButton(
-              padding: EdgeInsets.zero,
-              onPressed: _refreshImages,
-              child: const Icon(CupertinoIcons.refresh),
+            const _SectionHeader(title: 'Flat to Glass Transition'),
+            const _SectionDescription(
+              text:
+                  'Transitions from a solid colored container to a glass '
+                  'effect by animating visibility, blur, and thickness.',
             ),
-            CupertinoSwitch(
-              value: _fake,
-              onChanged: (v) => setState(() => _fake = v),
+            const _ExampleRow(
+              realChild: FlatToGlassExample(fake: false),
+              fakeChild: FlatToGlassExample(fake: true),
+            ),
+            const SizedBox(height: 32),
+            const _SectionHeader(title: 'Glass Intensity'),
+            const _SectionDescription(
+              text:
+                  'Animates glass intensity from subtle to prominent by '
+                  'changing blur, thickness, and saturation.',
+            ),
+            const _ExampleRow(
+              realChild: GlassIntensityExample(fake: false),
+              fakeChild: GlassIntensityExample(fake: true),
+            ),
+            const SizedBox(height: 32),
+            const _SectionHeader(title: 'Border Radius Animation'),
+            const _SectionDescription(
+              text:
+                  'Animates the shape borderRadius from sharp (8) to '
+                  'rounded (64) using LiquidShape.lerp.',
+            ),
+            const _ExampleRow(
+              realChild: BorderRadiusAnimationExample(fake: false),
+              fakeChild: BorderRadiusAnimationExample(fake: true),
+            ),
+            const SizedBox(height: 32),
+            const _SectionHeader(title: 'Combined Transition'),
+            const _SectionDescription(
+              text: 'Combines shape, settings, and size animations together.',
+            ),
+            const _ExampleRow(
+              realChild: CombinedTransitionExample(fake: false),
+              fakeChild: CombinedTransitionExample(fake: true),
             ),
           ],
         ),
       ),
-      child: _FakeModeScope(
-        fake: _fake,
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.all(20),
+    );
+  }
+}
+
+/// A row showing real and fake glass examples side by side.
+class _ExampleRow extends StatelessWidget {
+  const _ExampleRow({
+    required this.realChild,
+    required this.fakeChild,
+  });
+
+  final Widget realChild;
+  final Widget fakeChild;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Text(
-                    _fake ? 'FakeGlass mode' : 'LiquidGlass mode',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: _fake
-                          ? CupertinoColors.systemOrange.resolveFrom(context)
-                          : CupertinoColors.systemGreen.resolveFrom(context),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              const _SectionHeader(title: 'Flat to Glass Transition'),
-              const _SectionDescription(
-                text:
-                    'Transitions from a solid colored container to a glass '
-                    'effect by animating visibility, blur, and thickness.',
-              ),
-              const FlatToGlassExample(),
-              const SizedBox(height: 32),
-              const _SectionHeader(title: 'Glass Intensity'),
-              const _SectionDescription(
-                text:
-                    'Animates glass intensity from subtle to prominent by '
-                    'changing blur, thickness, and saturation.',
-              ),
-              const GlassIntensityExample(),
-              const SizedBox(height: 32),
-              const _SectionHeader(title: 'Border Radius Animation'),
-              const _SectionDescription(
-                text:
-                    'Animates the shape borderRadius from sharp (8) to '
-                    'rounded (64) using LiquidShape.lerp.',
-              ),
-              const BorderRadiusAnimationExample(),
-              const SizedBox(height: 32),
-              const _SectionHeader(title: 'Combined Transition'),
-              const _SectionDescription(
-                text: 'Combines shape, settings, and size animations together.',
-              ),
-              const CombinedTransitionExample(),
+              _ColumnLabel(text: 'Real Glass'),
+              realChild,
             ],
           ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _ColumnLabel(text: 'Fake Glass'),
+              fakeChild,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ColumnLabel extends StatelessWidget {
+  const _ColumnLabel({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: CupertinoColors.systemGrey.resolveFrom(context),
         ),
       ),
     );
@@ -169,7 +195,9 @@ class _SectionDescription extends StatelessWidget {
 /// The "flat" state shows a semi-transparent colored container.
 /// The "glass" state shows the full glass effect with blur and lighting.
 class FlatToGlassExample extends StatefulWidget {
-  const FlatToGlassExample({super.key});
+  const FlatToGlassExample({super.key, required this.fake});
+
+  final bool fake;
 
   @override
   State<FlatToGlassExample> createState() => _FlatToGlassExampleState();
@@ -233,7 +261,6 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
 
   @override
   Widget build(BuildContext context) {
-    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _isGlass
@@ -255,7 +282,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: settings,
-              fake: fake,
+              fake: widget.fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -272,7 +299,9 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
 
 /// Demonstrates animating glass intensity from subtle to prominent.
 class GlassIntensityExample extends StatefulWidget {
-  const GlassIntensityExample({super.key});
+  const GlassIntensityExample({super.key, required this.fake});
+
+  final bool fake;
 
   @override
   State<GlassIntensityExample> createState() => _GlassIntensityExampleState();
@@ -334,7 +363,6 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
 
   @override
   Widget build(BuildContext context) {
-    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _intense ? 'Intense - tap for subtle' : 'Subtle - tap for intense',
@@ -350,7 +378,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
             child: LiquidGlass.withOwnLayer(
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: settings,
-              fake: fake,
+              fake: widget.fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -369,7 +397,9 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
 ///
 /// Uses [LiquidShape.lerp] for same-type interpolation of border radius.
 class BorderRadiusAnimationExample extends StatefulWidget {
-  const BorderRadiusAnimationExample({super.key});
+  const BorderRadiusAnimationExample({super.key, required this.fake});
+
+  final bool fake;
 
   @override
   State<BorderRadiusAnimationExample> createState() =>
@@ -413,7 +443,6 @@ class _BorderRadiusAnimationExampleState
 
   @override
   Widget build(BuildContext context) {
-    final fake = _FakeModeScope.of(context);
     const shapeA = LiquidRoundedSuperellipse(borderRadius: 8);
     const shapeB = LiquidRoundedSuperellipse(borderRadius: 64);
 
@@ -436,7 +465,7 @@ class _BorderRadiusAnimationExampleState
                 lightIntensity: 0.6,
                 glassColor: Color.fromARGB(20, 255, 255, 255),
               ),
-              fake: fake,
+              fake: widget.fake,
               child: GlassGlow(child: child!),
             ),
           );
@@ -456,7 +485,9 @@ class _BorderRadiusAnimationExampleState
 /// This example animates both the shape (borderRadius) and settings
 /// (visibility, blur, etc.) simultaneously for a complete transformation.
 class CombinedTransitionExample extends StatefulWidget {
-  const CombinedTransitionExample({super.key});
+  const CombinedTransitionExample({super.key, required this.fake});
+
+  final bool fake;
 
   @override
   State<CombinedTransitionExample> createState() =>
@@ -520,7 +551,6 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 
   @override
   Widget build(BuildContext context) {
-    final fake = _FakeModeScope.of(context);
     return _ExampleContainer(
       onTap: _toggle,
       label: _expanded
@@ -544,8 +574,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
                 child: LiquidGlass.withOwnLayer(
                   shape: shape,
                   settings: settings,
-                  fake: fake,
-                  debugLabel: 'CombinedTransitionExample',
+                  fake: widget.fake,
                   child: GlassGlow(child: child!),
                 ),
               ),
@@ -588,14 +617,14 @@ class _ExampleContainer extends StatefulWidget {
 }
 
 class _ExampleContainerState extends State<_ExampleContainer> {
-  // Random image ID for picsum.photos
-  late final int _imageId;
+  // Base random image ID for picsum.photos
+  late final int _baseImageId;
 
   @override
   void initState() {
     super.initState();
     // Generate a stable random ID based on hashCode
-    _imageId = Random().nextInt(1000);
+    _baseImageId = Random().nextInt(1000);
   }
 
   @override
@@ -612,22 +641,30 @@ class _ExampleContainerState extends State<_ExampleContainer> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // Background image
-                  Image.network(
-                    'https://picsum.photos/2000/2000?random=$_imageId',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stack) => Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            CupertinoColors.systemPurple.withValues(alpha: 0.5),
-                            CupertinoColors.systemBlue.withValues(alpha: 0.5),
-                          ],
+                  // Background image - refreshes when notifier changes
+                  ValueListenableBuilder<int>(
+                    valueListenable: _imageRefreshNotifier,
+                    builder: (context, refreshCount, _) {
+                      final imageId = _baseImageId + refreshCount * 1000;
+                      return Image.network(
+                        'https://picsum.photos/2000/2000?random=$imageId',
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stack) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                CupertinoColors.systemPurple
+                                    .withValues(alpha: 0.5),
+                                CupertinoColors.systemBlue
+                                    .withValues(alpha: 0.5),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                   // The glass widget
                   Center(child: widget.child),

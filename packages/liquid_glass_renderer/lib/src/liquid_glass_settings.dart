@@ -14,7 +14,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.thickness = 20,
     this.blur = 5,
     this.chromaticAberration = .01,
-    this.lightAngle = 0.5 * pi,
+    this.lightAngle = pi / 4,
     this.lightIntensity = .5,
     this.ambientStrength = 0,
     this.refractiveIndex = 1.2,
@@ -34,7 +34,7 @@ class LiquidGlassSettings with EquatableMixin {
     required double frost,
     double visibility = 1.0,
     double lightIntensity = 50,
-    double lightAngle = 0.5 * pi,
+    double lightAngle = pi / 4,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
     bool frosted = true,
     double fakeGlassRefraction = 5.0,
@@ -90,7 +90,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0.005,
-        lightAngle = 0.5 * pi,
+        lightAngle = pi / 4,
         lightIntensity = 0.3,
         ambientStrength = 0;
 

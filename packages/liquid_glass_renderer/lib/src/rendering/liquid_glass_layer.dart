@@ -71,8 +71,7 @@ class LiquidGlassLayer extends StatefulWidget {
   /// The settings for the liquid glass effect for all shapes in this layer.
   final LiquidGlassSettings settings;
 
-  /// Whether to replace all liquid glass effects in this layer with
-  /// [FakeGlass] effects.
+  /// Whether to use fake glass mode (backdrop filters) instead of shaders.
   final bool fake;
 
   /// Whether to look up the tree for a [BackdropGroup] to use for this layer's

@@ -95,7 +95,7 @@ class LiquidGlass extends StatelessWidget {
   /// The settings for this glass if it is supposed to create its own layer.
   final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
 
-  /// Debug label for logging. When set, enables debug output for FakeGlass.
+  /// Debug label for logging. When set, enables debug output for fake glass mode.
   final String? debugLabel;
 
   @override

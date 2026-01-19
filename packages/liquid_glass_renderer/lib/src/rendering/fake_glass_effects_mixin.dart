@@ -68,8 +68,8 @@ const kFakeGlassDepthGradientDarkRatio = 0.7;
 
 /// A mixin that provides fake glass painting effects.
 ///
-/// This mixin extracts the visual effects painting logic from [FakeGlass]
-/// so it can be reused by [RenderLiquidGlassLayer] when rendering fake glass.
+/// This mixin provides visual effects painting logic for fake glass mode,
+/// used by RenderLiquidGlassLayer when rendering without shaders.
 @internal
 mixin FakeGlassEffectsMixin {
   /// The settings used to configure the fake glass effects.

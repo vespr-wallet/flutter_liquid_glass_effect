@@ -15,7 +15,7 @@
 > - **Make sure your App is built on Impeller**. Skia is unsupported for now
 > - **Test thoroughly on your target devices**, especially lower-end and mid-range devices
 > - **Monitor performance metrics** (memory usage, frame rates, power consumption, jank)
-> - **Use `FakeGlass` strategically**: Swap out `LiquidGlass` widgets with `FakeGlass` when they're not highly visible, off-screen, or have low visual impact
+> - **Use `fake: true` strategically**: Set `LiquidGlassLayer(fake: true)` for layers that are not highly visible or have low visual impact
 >
 > **We need your feedback!** Please test on your devices and report performance characteristics, issues, and suggestions.
 
@@ -87,7 +87,6 @@ This package provides several widgets to create the glass effect:
 | `LiquidGlassLayer`        | Container for all liquid glass effects. Required parent for `LiquidGlass` widgets.         |
 | `LiquidGlass`             | Creates a single glass shape. Must be inside a `LiquidGlassLayer`.                         |
 | `LiquidGlassBlendGroup`   | Groups multiple `LiquidGlass.grouped` shapes to blend them together seamlessly.            |
-| `FakeGlass`               | Lightweight glass appearance without refraction. Better performance, less visual fidelity. |
 | `GlassGlow`               | Add touch-responsive glow effects to glass surfaces.                                       |
 | `LiquidStretch`           | Add interactive squash and stretch effects to glass widgets (optional).                    |
 
@@ -299,28 +298,9 @@ The `child` of a `LiquidGlass` widget can be rendered either "inside" the glass 
 -   `glassContainsChild: false` (default): The child is rendered normally on top of the glass effect.
 -   `glassContainsChild: true`: The child is part of the glass, affected by color tint and refraction.
 
-### `FakeGlass`: Lightweight Glass Alternative
+### Fake Glass Mode: Lightweight Alternative
 
-For scenarios where performance is critical or you need a glass-like appearance without the computational cost of refraction, use `FakeGlass`. It provides a similar visual effect using backdrop filters instead of shaders.
-
-```dart
-FakeGlass(
-  shape: LiquidRoundedSuperellipse(
-    borderRadius: 20,
-  ),
-  settings: const LiquidGlassSettings(
-    blur: 10,
-    glassColor: Color(0x33FFFFFF),
-  ),
-  child: const SizedBox(
-    height: 100,
-    width: 100,
-    child: Center(child: Text('Fast Glass')),
-  ),
-)
-```
-
-Alternatively, you can enable fake glass for an entire layer:
+For scenarios where performance is critical or you need a glass-like appearance without the computational cost of refraction, enable fake glass mode on the layer. It provides a similar visual effect using backdrop filters instead of shaders.
 
 ```dart
 LiquidGlassLayer(
@@ -329,11 +309,18 @@ LiquidGlassLayer(
     blur: 10,
     glassColor: Color(0x33FFFFFF),
   ),
-  child: // ... your glass widgets will automatically use FakeGlass
+  child: LiquidGlass(
+    shape: LiquidRoundedSuperellipse(borderRadius: 20),
+    child: const SizedBox(
+      height: 100,
+      width: 100,
+      child: Center(child: Text('Fast Glass')),
+    ),
+  ),
 )
 ```
 
-**Note:** `FakeGlass` does not support `thickness` or `refractiveIndex` properties since it doesn't perform actual refraction.
+**Note:** Fake glass mode does not support `thickness` or `refractiveIndex` properties since it doesn't perform actual refraction.
 
 ### `GlassGlow`: Interactive Touch Effects
 

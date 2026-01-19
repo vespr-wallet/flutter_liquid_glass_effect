@@ -102,49 +102,51 @@ class LiquidGlass extends StatelessWidget {
   Widget build(BuildContext context) {
     // If we have our own layer config, we create our own layer.
     if (ownLayerConfig case (final settings, final fake)) {
-      if (fake) {
-        return FakeGlass(
-          shape: shape,
-          settings: settings,
-          frosted: frosted,
-          debugLabel: debugLabel,
-          child: child,
-        );
-      }
-
       return LiquidGlassLayer(
         settings: settings,
-        child: Builder(builder: _buildGlassContent),
+        fake: fake,
+        child: Builder(
+          builder: (context) => _buildGlassContent(context, useFake: fake),
+        ),
       );
     }
 
     final useFake = LiquidGlassRenderScope.of(context).useFake;
 
-    if (useFake) {
-      return FakeGlass.inLayer(
-        shape: shape,
-        frosted: frosted,
-        debugLabel: debugLabel,
-        child: child,
-      );
-    }
-
-    return _buildGlassContent(context);
+    return _buildGlassContent(context, useFake: useFake);
   }
 
-  Widget _buildGlassContent(BuildContext context) {
-    if (!ImageFilter.isShaderFilterSupported) {
-      return FakeGlass.inLayer(
-        shape: shape,
-        frosted: frosted,
-        child: child,
-      );
-    }
-
+  Widget _buildGlassContent(BuildContext context, {required bool useFake}) {
     final settings = LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
+    final glassChild = ClipPath(
+      clipper: ShapeBorderClipper(shape: shape),
+      clipBehavior: clipBehavior,
+      child: Opacity(
+        opacity: settings.visibility.clamp(0, 1),
+        child: GlassGlowLayer(
+          child: child,
+        ),
+      ),
+    );
+
+    // When useFake or shader not supported, register geometry without shader
+    if (useFake || !ImageFilter.isShaderFilterSupported) {
+      return _RawLiquidGlass(
+        shader: null,
+        renderLink: InheritedGeometryRenderLink.of(context)!,
+        settings: settings,
+        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        shape: shape,
+        glassContainsChild: glassContainsChild,
+        frosted: resolvedFrosted,
+        child: glassChild,
+      );
+    }
+
+    // Real glass: load shader and register geometry
     return ShaderBuilder(
       (context, shader, builtChild) => _RawLiquidGlass(
         shader: shader,
@@ -157,16 +159,7 @@ class LiquidGlass extends StatelessWidget {
         child: builtChild,
       ),
       assetKey: ShaderKeys.blendedGeometry,
-      child: ClipPath(
-        clipper: ShapeBorderClipper(shape: shape),
-        clipBehavior: clipBehavior,
-        child: Opacity(
-          opacity: settings.visibility.clamp(0, 1),
-          child: GlassGlowLayer(
-            child: child,
-          ),
-        ),
-      ),
+      child: glassChild,
     );
   }
 }
@@ -183,7 +176,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.frosted,
   });
 
-  final FragmentShader shader;
+  final FragmentShader? shader;
   final GeometryRenderLink renderLink;
   final LiquidGlassSettings settings;
   final double devicePixelRatio;
@@ -210,6 +203,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     RenderLiquidGlassSingleShape renderObject,
   ) {
     renderObject
+      ..geometryShader = shader
       ..renderLink = renderLink
       ..settings = settings
       ..devicePixelRatio = devicePixelRatio
@@ -308,7 +302,9 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     LiquidGlassSettings settings,
     double devicePixelRatio,
   ) {
-    geometryShader.setFloatUniforms(initialIndex: 2, (value) {
+    final shader = geometryShader;
+    if (shader == null) return;
+    shader.setFloatUniforms(initialIndex: 2, (value) {
       value.setFloats([
         settings.refractiveIndex,
         settings.effectiveChromaticAberration,
@@ -320,13 +316,15 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
 
   @override
   void updateGeometryShaderShapes(List<ShapeGeometry> shapes) {
+    final shader = geometryShader;
+    if (shader == null) return;
     if (shapes.isEmpty) return;
 
     final shapeGeo = shapes.first;
     final center = shapeGeo.shapeBounds.center;
     final shapeSize = shapeGeo.shapeBounds.size;
 
-    geometryShader.setFloatUniforms(initialIndex: 6, (value) {
+    shader.setFloatUniforms(initialIndex: 6, (value) {
       value
         ..setFloat(1) // numShapes = 1
         ..setFloat(shapeGeo.rawShapeType.shaderIndex)

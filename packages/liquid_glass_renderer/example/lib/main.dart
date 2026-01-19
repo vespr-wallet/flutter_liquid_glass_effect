@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:leak_tracker/leak_tracker.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/basic_app.dart';
+export 'package:logging/logging.dart' show Level, Logger;
 
 void main() {
   FlutterMemoryAllocations.instance.addListener(
@@ -14,7 +15,7 @@ void main() {
   LeakTracking.phase = PhaseSettings(
     leakDiagnosticConfig: LeakDiagnosticConfig(collectStackTraceOnStart: true),
   );
-  LgrLogs.initAllLogs();
+  LgrLogs.initAllLogs(); // Disabled for benchmarking
   runApp(CupertinoApp(home: BasicApp()));
 }
 

@@ -286,6 +286,379 @@ class _SectionDescription extends StatelessWidget {
 }
 
 // =============================================================================
+// STRESS TEST: Many Individual Layers
+// =============================================================================
+
+/// Stress test with many glass items, each with its own layer.
+/// Tap items to toggle them on/off.
+class ManyIndividualLayersExample extends StatefulWidget {
+  const ManyIndividualLayersExample({
+    super.key,
+    required this.fake,
+    required this.frosted,
+  });
+
+  final bool fake;
+  final bool frosted;
+
+  @override
+  State<ManyIndividualLayersExample> createState() =>
+      _ManyIndividualLayersExampleState();
+}
+
+class _ManyIndividualLayersExampleState
+    extends State<ManyIndividualLayersExample> {
+  static const int _itemCount = 15;
+  final List<bool> _enabled = List.filled(_itemCount, true);
+
+  int get _enabledCount => _enabled.where((e) => e).length;
+
+  void _toggleItem(int index) {
+    setState(() {
+      _enabled[index] = !_enabled[index];
+    });
+  }
+
+  void _enableAll() {
+    setState(() {
+      for (var i = 0; i < _enabled.length; i++) {
+        _enabled[i] = true;
+      }
+    });
+  }
+
+  void _disableAll() {
+    setState(() {
+      for (var i = 0; i < _enabled.length; i++) {
+        _enabled[i] = false;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageId = _SharedImageId.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Controls row
+        Row(
+          children: [
+            Text(
+              'Active: $_enabledCount/$_itemCount',
+              style: TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              ),
+            ),
+            const Spacer(),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: _enableAll,
+              child: const Text('All On', style: TextStyle(fontSize: 12)),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: _disableAll,
+              child: const Text('All Off', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 320,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background
+                Image.network(
+                  'https://picsum.photos/2000/2000?random=$imageId',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          CupertinoColors.systemPurple.withValues(alpha: 0.5),
+                          CupertinoColors.systemBlue.withValues(alpha: 0.5),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Grid of glass items
+                Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: List.generate(_itemCount, (index) {
+                      final isEnabled = _enabled[index];
+                      return GestureDetector(
+                        onTap: () => _toggleItem(index),
+                        child: isEnabled
+                            ? LiquidGlass.withOwnLayer(
+                                shape: const LiquidRoundedSuperellipse(
+                                    borderRadius: 12),
+                                settings: LiquidGlassSettings(
+                                  visibility: 1,
+                                  thickness: 12,
+                                  frostIntensity: 5,
+                                  lightIntensity: 0.4,
+                                  glassColor:
+                                      const Color.fromARGB(15, 255, 255, 255),
+                                ),
+                                fake: widget.fake,
+                                frosted: widget.frosted,
+                                child: SizedBox(
+                                  width: 50,
+                                  height: 50,
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: const TextStyle(
+                                        color: CupertinoColors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: CupertinoColors.white
+                                        .withValues(alpha: 0.3),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${index + 1}',
+                                    style: TextStyle(
+                                      color: CupertinoColors.white
+                                          .withValues(alpha: 0.3),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// STRESS TEST: Shared Layer
+// =============================================================================
+
+/// Stress test with many glass items sharing a single layer.
+/// Tap items to toggle them on/off.
+class SharedLayerExample extends StatefulWidget {
+  const SharedLayerExample({
+    super.key,
+    required this.fake,
+    required this.frosted,
+  });
+
+  final bool fake;
+  final bool frosted;
+
+  @override
+  State<SharedLayerExample> createState() => _SharedLayerExampleState();
+}
+
+class _SharedLayerExampleState extends State<SharedLayerExample> {
+  static const int _itemCount = 15;
+  static const double _itemSize = 80;
+  final List<bool> _enabled = List.filled(_itemCount, true);
+
+  int get _enabledCount => _enabled.where((e) => e).length;
+
+  void _toggleItem(int index) {
+    setState(() {
+      _enabled[index] = !_enabled[index];
+    });
+  }
+
+  void _enableAll() {
+    setState(() {
+      for (var i = 0; i < _enabled.length; i++) {
+        _enabled[i] = true;
+      }
+    });
+  }
+
+  void _disableAll() {
+    setState(() {
+      for (var i = 0; i < _enabled.length; i++) {
+        _enabled[i] = false;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final imageId = _SharedImageId.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Controls row
+        Row(
+          children: [
+            Text(
+              'Active: $_enabledCount/$_itemCount',
+              style: TextStyle(
+                fontSize: 12,
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              ),
+            ),
+            const Spacer(),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: _enableAll,
+              child: const Text('All On', style: TextStyle(fontSize: 12)),
+            ),
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              onPressed: _disableAll,
+              child: const Text('All Off', style: TextStyle(fontSize: 12)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 320,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Background
+                Image.network(
+                  'https://picsum.photos/2000/2000?random=$imageId',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          CupertinoColors.systemOrange.withValues(alpha: 0.5),
+                          CupertinoColors.systemRed.withValues(alpha: 0.5),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Single layer with many glass items
+                LiquidGlassLayer(
+                  fake: widget.fake,
+                  settings: LiquidGlassSettings(
+                    visibility: 1,
+                    thickness: 12,
+                    frostIntensity: 5,
+                    frostByDefault: widget.frosted,
+                    lightIntensity: 0.4,
+                    glassColor: const Color.fromARGB(15, 255, 255, 255),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      alignment: WrapAlignment.center,
+                      runAlignment: WrapAlignment.center,
+                      // crossAxisAlignment: WrapCrossAlignment.center,
+                      children: List.generate(_itemCount, (index) {
+                        final isEnabled = _enabled[index];
+                        return GestureDetector(
+                          onTap: () => _toggleItem(index),
+                          child: isEnabled
+                              ? LiquidStretch(
+                                  child: LiquidGlass(
+                                    shape: const LiquidRoundedSuperellipse(
+                                        borderRadius: 12),
+                                    frosted: widget.frosted,
+                                    child: GlassGlow(
+                                      child: SizedBox(
+                                        width: _itemSize,
+                                        height: _itemSize,
+                                        child: Center(
+                                          child: Text(
+                                            '${index + 1}',
+                                            style: const TextStyle(
+                                              color: CupertinoColors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  width: _itemSize,
+                                  height: _itemSize,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: CupertinoColors.white
+                                          .withValues(alpha: 0.3),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '${index + 1}',
+                                      style: TextStyle(
+                                        color: CupertinoColors.white
+                                            .withValues(alpha: 0.3),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                        );
+                      }),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+
 // EXAMPLE 1: Flat to Glass Transition
 // =============================================================================
 
@@ -318,7 +691,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
   static const _flatSettings = LiquidGlassSettings(
     visibility: 1, // Keep visible!
     thickness: 0, // No glass depth
-    blur: 0, // No blur
+    frostByDefault: false, // No blur
     lightIntensity: 0, // No specular
     saturation: 1.0, // Normal saturation
     fakeGlassRefraction: 0, // No refraction for FakeGlass
@@ -329,7 +702,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
   static const _glassSettings = LiquidGlassSettings(
     visibility: 1,
     thickness: 20,
-    blur: 8,
+    frostIntensity: 8,
     lightIntensity: 0.7,
     saturation: 1.5,
     glassColor: Color.fromARGB(25, 255, 255, 255),
@@ -387,7 +760,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: widget.frosted
                   ? settings
-                  : settings.copyWith(blur: 0),
+                  : settings.copyWith(frostByDefault: false),
               fake: widget.fake,
               frosted: widget.frosted,
               child: GlassGlow(child: child!),
@@ -430,7 +803,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
   static const _subtleSettings = LiquidGlassSettings(
     visibility: 1,
     thickness: 8,
-    blur: 3,
+    frostIntensity: 3,
     lightIntensity: 0.3,
     saturation: 1.2,
     glassColor: Color.fromARGB(15, 200, 220, 255),
@@ -440,7 +813,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
   static const _intenseSettings = LiquidGlassSettings(
     visibility: 1,
     thickness: 35,
-    blur: 15,
+    frostIntensity: 15,
     lightIntensity: 1.0,
     saturation: 1.8,
     glassColor: Color.fromARGB(50, 255, 200, 150),
@@ -491,7 +864,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: widget.frosted
                   ? settings
-                  : settings.copyWith(blur: 0),
+                  : settings.copyWith(frostByDefault: false),
               fake: widget.fake,
               frosted: widget.frosted,
               child: GlassGlow(child: child!),
@@ -581,7 +954,7 @@ class _BorderRadiusAnimationExampleState
               settings: LiquidGlassSettings(
                 visibility: 1,
                 thickness: 20,
-                blur: widget.frosted ? 8 : 0,
+                frostIntensity: 8,
                 lightIntensity: 0.6,
                 glassColor: const Color.fromARGB(20, 255, 255, 255),
               ),
@@ -632,7 +1005,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
   static const _settingsA = LiquidGlassSettings(
     visibility: 1,
     thickness: 10,
-    blur: 4,
+    frostIntensity: 4,
     lightIntensity: 0.3,
     glassColor: Color.fromARGB(15, 200, 200, 255),
   );
@@ -642,7 +1015,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
   static const _settingsB = LiquidGlassSettings(
     visibility: 1,
     thickness: 30,
-    blur: 12,
+    frostIntensity: 12,
     lightIntensity: 0.9,
     saturation: 1.6,
     glassColor: Color.fromARGB(40, 255, 220, 150),
@@ -701,7 +1074,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
                   shape: shape,
                   settings: widget.frosted
                       ? settings
-                      : settings.copyWith(blur: 0),
+                      : settings.copyWith(frostByDefault: false),
                   fake: widget.fake,
                   frosted: widget.frosted,
                   child: GlassGlow(child: child!),
@@ -901,7 +1274,7 @@ class _BouncingContainerState extends State<_BouncingContainer> {
                     settings: LiquidGlassSettings(
                       visibility: 1,
                       thickness: 15,
-                      blur: widget.frosted ? 6 : 0,
+                      frostIntensity: 6,
                       lightIntensity: 0.5,
                       glassColor: const Color.fromARGB(20, 255, 255, 255),
                     ),

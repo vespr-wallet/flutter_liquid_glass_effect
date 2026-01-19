@@ -91,7 +91,7 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
         LiquidGlassSettings(
           refractiveIndex: 1.21,
           thickness: 30,
-          blur: 8,
+          frostIntensity: 8,
           saturation: 1.5,
           lightIntensity: isDark ? .7 : 1,
           ambientStrength: isDark ? .2 : .5,
@@ -585,7 +585,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                           thickness: 4,
                           lightIntensity: 2,
                           chromaticAberration: .5,
-                          blur: 0,
+                          frostByDefault: false,
                         ),
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,

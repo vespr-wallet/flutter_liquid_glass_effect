@@ -27,6 +27,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         _devicePixelRatio = devicePixelRatio,
         _backdropKey = backdropKey,
         _link = link {
+    logger.info('Setting backdrop key to $backdropKey');
     _updateShaderSettings();
   }
 

@@ -394,9 +394,9 @@ class _RenderFakeGlass extends RenderProxyBox {
 
     // Boost saturation to match real glass shader appearance
     // Clamp to >= 0 to avoid negative values that would invert colors
-    final boostedSaturation = (1.0 +
-            (settings.effectiveSaturation - 1.0) * _kSaturationMultiplier)
-        .clamp(0.0, double.infinity);
+    final boostedSaturation =
+        (1.0 + (settings.effectiveSaturation - 1.0) * _kSaturationMultiplier)
+            .clamp(0.0, double.infinity);
     final saturationFilter = !isAnimating && boostedSaturation != 1.0
         ? ui.ColorFilter.matrix(
             _getSaturationMatrix(boostedSaturation),

@@ -1,16 +1,236 @@
 // Isolated transition examples demonstrating LiquidGlass animations
 // These examples showcase flat-to-glass, settings, and shape transitions
+// Includes performance measurement for A/B testing real vs fake glass
 
 import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+
+// =============================================================================
+// ENUMS AND GLOBAL STATE
+// =============================================================================
+
+/// Controls which glass type to display.
+enum DisplayMode {
+  both('Both'),
+  realOnly('Real Only'),
+  fakeOnly('Fake Only');
+
+  const DisplayMode(this.label);
+  final String label;
+}
+
+/// Controls frost setting across all examples.
+enum FrostMode {
+  individual('Individual'),
+  allFrosted('All Frosted'),
+  allClear('All Clear');
+
+  const FrostMode(this.label);
+  final String label;
+}
+
+/// Provides global settings to descendant widgets.
+class _GlobalSettings extends InheritedWidget {
+  const _GlobalSettings({
+    required this.displayMode,
+    required this.frostMode,
+    required super.child,
+  });
+
+  final DisplayMode displayMode;
+  final FrostMode frostMode;
+
+  static _GlobalSettings of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<_GlobalSettings>()!;
+  }
+
+  @override
+  bool updateShouldNotify(_GlobalSettings oldWidget) =>
+      displayMode != oldWidget.displayMode || frostMode != oldWidget.frostMode;
+}
+
+// =============================================================================
+// PERFORMANCE MEASUREMENT
+// =============================================================================
+
+/// Tracks frame timing statistics.
+class FrameStats {
+  final List<Duration> _frameTimes = [];
+  static const int _maxSamples = 120; // ~2 seconds at 60fps
+
+  void addFrame(Duration frameTime) {
+    _frameTimes.add(frameTime);
+    if (_frameTimes.length > _maxSamples) {
+      _frameTimes.removeAt(0);
+    }
+  }
+
+  void clear() => _frameTimes.clear();
+
+  int get sampleCount => _frameTimes.length;
+
+  double get averageMs {
+    if (_frameTimes.isEmpty) return 0;
+    final total = _frameTimes.fold<int>(0, (sum, d) => sum + d.inMicroseconds);
+    return total / _frameTimes.length / 1000;
+  }
+
+  double get maxMs {
+    if (_frameTimes.isEmpty) return 0;
+    return _frameTimes
+            .map((d) => d.inMicroseconds)
+            .reduce((a, b) => a > b ? a : b) /
+        1000;
+  }
+
+  double get minMs {
+    if (_frameTimes.isEmpty) return 0;
+    return _frameTimes
+            .map((d) => d.inMicroseconds)
+            .reduce((a, b) => a < b ? a : b) /
+        1000;
+  }
+
+  int get droppedFrames {
+    // Count frames over 16.67ms (60fps threshold)
+    return _frameTimes.where((d) => d.inMicroseconds > 16667).length;
+  }
+
+  double get fps {
+    if (averageMs <= 0) return 0;
+    return 1000 / averageMs;
+  }
+}
+
+/// Widget that measures and displays frame performance.
+class _PerformanceMonitor extends StatefulWidget {
+  const _PerformanceMonitor({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_PerformanceMonitor> createState() => _PerformanceMonitorState();
+}
+
+class _PerformanceMonitorState extends State<_PerformanceMonitor> {
+  final FrameStats _stats = FrameStats();
+  Duration? _lastFrameTime;
+  bool _isTracking = false;
+
+  void _onFrame(Duration timestamp) {
+    if (!_isTracking) return;
+
+    if (_lastFrameTime != null) {
+      final frameTime = timestamp - _lastFrameTime!;
+      _stats.addFrame(frameTime);
+      // Update UI every 10 frames to reduce overhead
+      if (_stats.sampleCount % 10 == 0) {
+        setState(() {});
+      }
+    }
+    _lastFrameTime = timestamp;
+    SchedulerBinding.instance.scheduleFrameCallback(_onFrame);
+  }
+
+  void _startTracking() {
+    if (_isTracking) return;
+    _isTracking = true;
+    _stats.clear();
+    _lastFrameTime = null;
+    SchedulerBinding.instance.scheduleFrameCallback(_onFrame);
+  }
+
+  void _stopTracking() {
+    _isTracking = false;
+  }
+
+  void _resetStats() {
+    _stats.clear();
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _isTracking = false;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Performance stats bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: CupertinoColors.systemBackground.resolveFrom(context),
+          child: Row(
+            children: [
+              // Stats display
+              Expanded(
+                child: Text(
+                  _isTracking
+                      ? 'FPS: ${_stats.fps.toStringAsFixed(1)} | '
+                            'Avg: ${_stats.averageMs.toStringAsFixed(2)}ms | '
+                            'Max: ${_stats.maxMs.toStringAsFixed(2)}ms | '
+                            'Drops: ${_stats.droppedFrames}'
+                      : 'Performance tracking stopped',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontFamily: 'Menlo',
+                    color: _stats.droppedFrames > 5
+                        ? CupertinoColors.systemRed
+                        : CupertinoColors.label.resolveFrom(context),
+                  ),
+                ),
+              ),
+              // Control buttons
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(28, 28),
+                onPressed: _isTracking ? _stopTracking : _startTracking,
+                child: Icon(
+                  _isTracking
+                      ? CupertinoIcons.pause_fill
+                      : CupertinoIcons.play_fill,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 8),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                minimumSize: const Size(28, 28),
+                onPressed: _resetStats,
+                child: const Icon(CupertinoIcons.refresh, size: 18),
+              ),
+            ],
+          ),
+        ),
+        Expanded(child: widget.child),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// MAIN PAGE
+// =============================================================================
 
 /// A page showcasing various glass transition examples.
 ///
 /// Each example is isolated in its own widget for easy review.
-class TransitionExamplesPage extends StatelessWidget {
+class TransitionExamplesPage extends StatefulWidget {
   const TransitionExamplesPage({super.key});
+
+  @override
+  State<TransitionExamplesPage> createState() => _TransitionExamplesPageState();
+}
+
+class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
+  DisplayMode _displayMode = DisplayMode.both;
+  FrostMode _frostMode = FrostMode.individual;
 
   @override
   Widget build(BuildContext context) {
@@ -18,69 +238,271 @@ class TransitionExamplesPage extends StatelessWidget {
       navigationBar: const CupertinoNavigationBar(
         middle: Text('Transition Examples'),
       ),
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _Section(
-              title: 'Bouncing Glass',
-              description:
-                  'Glass element bouncing around like a DVD screensaver, '
-                  'showcasing refraction and reflection during movement.',
-              realChildBuilder: (frosted) =>
-                  BouncingGlassExample(fake: false, frosted: frosted),
-              fakeChildBuilder: (frosted) =>
-                  BouncingGlassExample(fake: true, frosted: frosted),
+      child: _GlobalSettings(
+        displayMode: _displayMode,
+        frostMode: _frostMode,
+        child: SafeArea(
+          child: _PerformanceMonitor(
+            child: Column(
+              children: [
+                // Global controls
+                _GlobalControls(
+                  displayMode: _displayMode,
+                  frostMode: _frostMode,
+                  onDisplayModeChanged: (mode) =>
+                      setState(() => _displayMode = mode),
+                  onFrostModeChanged: (mode) =>
+                      setState(() => _frostMode = mode),
+                ),
+                // Examples list
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      // Stress test sections first for easy benchmarking
+                      _Section(
+                        title: 'Many Individual Layers (Stress Test)',
+                        description:
+                            'Each glass item has its own LiquidGlassLayer. '
+                            'Tests per-layer overhead.',
+                        realChildBuilder: (frosted) =>
+                            ManyIndividualLayersExample(
+                              fake: false,
+                              frosted: frosted,
+                            ),
+                        fakeChildBuilder: (frosted) =>
+                            ManyIndividualLayersExample(
+                              fake: true,
+                              frosted: frosted,
+                            ),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Shared Layer (Stress Test)',
+                        description:
+                            'Many glass items share a single LiquidGlassLayer. '
+                            'Tests shader complexity with multiple shapes.',
+                        realChildBuilder: (frosted) =>
+                            SharedLayerExample(fake: false, frosted: frosted),
+                        fakeChildBuilder: (frosted) =>
+                            SharedLayerExample(fake: true, frosted: frosted),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Bouncing Glass',
+                        description:
+                            'Glass element bouncing around like a DVD screensaver, '
+                            'showcasing refraction and reflection during movement.',
+                        realChildBuilder: (frosted) =>
+                            BouncingGlassExample(fake: false, frosted: frosted),
+                        fakeChildBuilder: (frosted) =>
+                            BouncingGlassExample(fake: true, frosted: frosted),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Flat to Glass Transition',
+                        description:
+                            'Transitions from a solid colored container to a glass '
+                            'effect by animating visibility, blur, and thickness.',
+                        realChildBuilder: (frosted) =>
+                            FlatToGlassExample(fake: false, frosted: frosted),
+                        fakeChildBuilder: (frosted) =>
+                            FlatToGlassExample(fake: true, frosted: frosted),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Glass Intensity',
+                        description:
+                            'Animates glass intensity from subtle to prominent by '
+                            'changing blur, thickness, and saturation.',
+                        realChildBuilder: (frosted) => GlassIntensityExample(
+                          fake: false,
+                          frosted: frosted,
+                        ),
+                        fakeChildBuilder: (frosted) =>
+                            GlassIntensityExample(fake: true, frosted: frosted),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Border Radius Animation',
+                        description:
+                            'Animates the shape borderRadius from sharp (8) to '
+                            'rounded (64) using LiquidShape.lerp.',
+                        realChildBuilder: (frosted) =>
+                            BorderRadiusAnimationExample(
+                              fake: false,
+                              frosted: frosted,
+                            ),
+                        fakeChildBuilder: (frosted) =>
+                            BorderRadiusAnimationExample(
+                              fake: true,
+                              frosted: frosted,
+                            ),
+                      ),
+                      const SizedBox(height: 32),
+                      _Section(
+                        title: 'Combined Transition',
+                        description:
+                            'Combines shape, settings, and size animations together.',
+                        realChildBuilder: (frosted) =>
+                            CombinedTransitionExample(
+                              fake: false,
+                              frosted: frosted,
+                            ),
+                        fakeChildBuilder: (frosted) =>
+                            CombinedTransitionExample(
+                              fake: true,
+                              frosted: frosted,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
-            _Section(
-              title: 'Flat to Glass Transition',
-              description:
-                  'Transitions from a solid colored container to a glass '
-                  'effect by animating visibility, blur, and thickness.',
-              realChildBuilder: (frosted) =>
-                  FlatToGlassExample(fake: false, frosted: frosted),
-              fakeChildBuilder: (frosted) =>
-                  FlatToGlassExample(fake: true, frosted: frosted),
-            ),
-            const SizedBox(height: 32),
-            _Section(
-              title: 'Glass Intensity',
-              description:
-                  'Animates glass intensity from subtle to prominent by '
-                  'changing blur, thickness, and saturation.',
-              realChildBuilder: (frosted) =>
-                  GlassIntensityExample(fake: false, frosted: frosted),
-              fakeChildBuilder: (frosted) =>
-                  GlassIntensityExample(fake: true, frosted: frosted),
-            ),
-            const SizedBox(height: 32),
-            _Section(
-              title: 'Border Radius Animation',
-              description:
-                  'Animates the shape borderRadius from sharp (8) to '
-                  'rounded (64) using LiquidShape.lerp.',
-              realChildBuilder: (frosted) =>
-                  BorderRadiusAnimationExample(fake: false, frosted: frosted),
-              fakeChildBuilder: (frosted) =>
-                  BorderRadiusAnimationExample(fake: true, frosted: frosted),
-            ),
-            const SizedBox(height: 32),
-            _Section(
-              title: 'Combined Transition',
-              description:
-                  'Combines shape, settings, and size animations together.',
-              realChildBuilder: (frosted) =>
-                  CombinedTransitionExample(fake: false, frosted: frosted),
-              fakeChildBuilder: (frosted) =>
-                  CombinedTransitionExample(fake: true, frosted: frosted),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
+
+/// Global controls for display mode and frost mode.
+class _GlobalControls extends StatelessWidget {
+  const _GlobalControls({
+    required this.displayMode,
+    required this.frostMode,
+    required this.onDisplayModeChanged,
+    required this.onFrostModeChanged,
+  });
+
+  final DisplayMode displayMode;
+  final FrostMode frostMode;
+  final ValueChanged<DisplayMode> onDisplayModeChanged;
+  final ValueChanged<FrostMode> onFrostModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: CupertinoColors.secondarySystemBackground.resolveFrom(context),
+        border: Border(
+          bottom: BorderSide(
+            color: CupertinoColors.separator.resolveFrom(context),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Display mode dropdown
+          Expanded(
+            child: _DropdownButton<DisplayMode>(
+              label: 'Show',
+              value: displayMode,
+              items: DisplayMode.values,
+              onChanged: onDisplayModeChanged,
+            ),
+          ),
+          const SizedBox(width: 16),
+          // Frost mode dropdown
+          Expanded(
+            child: _DropdownButton<FrostMode>(
+              label: 'Frost',
+              value: frostMode,
+              items: FrostMode.values,
+              onChanged: onFrostModeChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A styled dropdown button.
+class _DropdownButton<T extends Enum> extends StatelessWidget {
+  const _DropdownButton({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> items;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 13,
+            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+          ),
+        ),
+        Expanded(
+          child: CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            color: CupertinoColors.tertiarySystemBackground.resolveFrom(
+              context,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            minimumSize: Size.zero,
+            onPressed: () => _showPicker(context),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  (value as dynamic).label as String,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: CupertinoColors.label.resolveFrom(context),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  CupertinoIcons.chevron_down,
+                  size: 12,
+                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showPicker(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        actions: items.map((item) {
+          return CupertinoActionSheetAction(
+            onPressed: () {
+              onChanged(item);
+              Navigator.pop(context);
+            },
+            child: Text((item as dynamic).label as String),
+          );
+        }).toList(),
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// SECTION COMPONENT
+// =============================================================================
 
 /// A complete section with header, description, and example row.
 class _Section extends StatefulWidget {
@@ -102,7 +524,7 @@ class _Section extends StatefulWidget {
 
 class _SectionState extends State<_Section> {
   int _imageId = Random().nextInt(1000);
-  bool _frosted = true;
+  bool _localFrosted = true;
 
   void _refreshImage() {
     setState(() {
@@ -112,103 +534,112 @@ class _SectionState extends State<_Section> {
 
   @override
   Widget build(BuildContext context) {
+    final globalSettings = _GlobalSettings.of(context);
+    final displayMode = globalSettings.displayMode;
+    final frostMode = globalSettings.frostMode;
+
+    // Determine effective frost setting
+    final effectiveFrosted = switch (frostMode) {
+      FrostMode.individual => _localFrosted,
+      FrostMode.allFrosted => true,
+      FrostMode.allClear => false,
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _SectionHeader(
           title: widget.title,
           onRefresh: _refreshImage,
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Frost',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: CupertinoColors.systemGrey.resolveFrom(context),
-                ),
-              ),
-              const SizedBox(width: 4),
-              CupertinoSwitch(
-                value: _frosted,
-                onChanged: (value) => setState(() => _frosted = value),
-              ),
-            ],
-          ),
+          trailing: frostMode == FrostMode.individual
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Frost',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: CupertinoColors.systemGrey.resolveFrom(context),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    CupertinoSwitch(
+                      value: _localFrosted,
+                      onChanged: (value) =>
+                          setState(() => _localFrosted = value),
+                    ),
+                  ],
+                )
+              : null,
         ),
         _SectionDescription(text: widget.description),
-        _ExampleRow(
-          imageId: _imageId,
-          realChild: widget.realChildBuilder(_frosted),
-          fakeChild: widget.fakeChildBuilder(_frosted),
-        ),
+        _buildExampleRow(displayMode, effectiveFrosted),
       ],
+    );
+  }
+
+  Widget _buildExampleRow(DisplayMode displayMode, bool frosted) {
+    return _SharedImageId(
+      imageId: _imageId,
+      child: switch (displayMode) {
+        DisplayMode.both => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _ColumnLabel(text: 'Real Glass'),
+                  widget.realChildBuilder(frosted),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _ColumnLabel(text: 'Fake Glass'),
+                  widget.fakeChildBuilder(frosted),
+                ],
+              ),
+            ),
+          ],
+        ),
+        DisplayMode.realOnly => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _ColumnLabel(text: 'Real Glass'),
+            widget.realChildBuilder(frosted),
+          ],
+        ),
+        DisplayMode.fakeOnly => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _ColumnLabel(text: 'Fake Glass'),
+            widget.fakeChildBuilder(frosted),
+          ],
+        ),
+      },
     );
   }
 }
 
 /// Provides a shared image ID to descendant widgets.
 class _SharedImageId extends InheritedWidget {
-  const _SharedImageId({
-    required this.imageId,
-    required super.child,
-  });
+  const _SharedImageId({required this.imageId, required super.child});
 
   final int imageId;
 
   static int of(BuildContext context) {
-    return context.dependOnInheritedWidgetOfExactType<_SharedImageId>()!.imageId;
+    return context
+        .dependOnInheritedWidgetOfExactType<_SharedImageId>()!
+        .imageId;
   }
 
   @override
   bool updateShouldNotify(_SharedImageId oldWidget) =>
       imageId != oldWidget.imageId;
-}
-
-/// A row showing real and fake glass examples side by side.
-class _ExampleRow extends StatelessWidget {
-  const _ExampleRow({
-    required this.imageId,
-    required this.realChild,
-    required this.fakeChild,
-  });
-
-  final int imageId;
-  final Widget realChild;
-  final Widget fakeChild;
-
-  @override
-  Widget build(BuildContext context) {
-    return _SharedImageId(
-      imageId: imageId,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 1,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ColumnLabel(text: 'Real Glass'),
-                realChild,
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 1,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _ColumnLabel(text: 'Fake Glass'),
-                fakeChild,
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _ColumnLabel extends StatelessWidget {
@@ -405,17 +836,22 @@ class _ManyIndividualLayersExampleState
                         child: isEnabled
                             ? LiquidGlass.withOwnLayer(
                                 shape: const LiquidRoundedSuperellipse(
-                                    borderRadius: 12),
+                                  borderRadius: 12,
+                                ),
                                 settings: LiquidGlassSettings(
                                   visibility: 1,
                                   thickness: 12,
                                   frostIntensity: 5,
+                                  frostByDefault: widget.frosted,
                                   lightIntensity: 0.4,
-                                  glassColor:
-                                      const Color.fromARGB(15, 255, 255, 255),
+                                  glassColor: const Color.fromARGB(
+                                    15,
+                                    255,
+                                    255,
+                                    255,
+                                  ),
                                 ),
                                 fake: widget.fake,
-                                frosted: widget.frosted,
                                 child: SizedBox(
                                   width: 50,
                                   height: 50,
@@ -437,8 +873,9 @@ class _ManyIndividualLayersExampleState
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: CupertinoColors.white
-                                        .withValues(alpha: 0.3),
+                                    color: CupertinoColors.white.withValues(
+                                      alpha: 0.3,
+                                    ),
                                     width: 1,
                                   ),
                                 ),
@@ -446,8 +883,9 @@ class _ManyIndividualLayersExampleState
                                   child: Text(
                                     '${index + 1}',
                                     style: TextStyle(
-                                      color: CupertinoColors.white
-                                          .withValues(alpha: 0.3),
+                                      color: CupertinoColors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -600,7 +1038,8 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                               ? LiquidStretch(
                                   child: LiquidGlass(
                                     shape: const LiquidRoundedSuperellipse(
-                                        borderRadius: 12),
+                                      borderRadius: 12,
+                                    ),
                                     frosted: widget.frosted,
                                     child: GlassGlow(
                                       child: SizedBox(
@@ -626,8 +1065,9 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
-                                      color: CupertinoColors.white
-                                          .withValues(alpha: 0.3),
+                                      color: CupertinoColors.white.withValues(
+                                        alpha: 0.3,
+                                      ),
                                       width: 1,
                                     ),
                                   ),
@@ -635,8 +1075,9 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                                     child: Text(
                                       '${index + 1}',
                                       style: TextStyle(
-                                        color: CupertinoColors.white
-                                            .withValues(alpha: 0.3),
+                                        color: CupertinoColors.white.withValues(
+                                          alpha: 0.3,
+                                        ),
                                         fontSize: 14,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -658,7 +1099,6 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
 }
 
 // =============================================================================
-
 // EXAMPLE 1: Flat to Glass Transition
 // =============================================================================
 
@@ -767,7 +1207,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
             ),
           );
         },
-        child: const _ExampleContent(text: 'Flat \u2194 Glass'),
+        child: const _ExampleContent(text: 'Flat ↔ Glass'),
       ),
     );
   }

@@ -26,8 +26,13 @@ import 'package:meta/meta.dart';
 /// enabled. On non-Impeller devices (Skia), the effect automatically falls
 /// back to fake glass rendering using standard backdrop filters.
 ///
+/// **Implicit Animations:** When [LiquidGlassSettings.animationDuration] is
+/// non-zero (default is 300ms), changes to [shape] and settings will animate
+/// automatically. Set the duration to [Duration.zero] to disable animations
+/// and make changes instant with no animation overhead.
+///
 /// See the [LiquidGlassLayer] documentation for more information.
-class LiquidGlass extends StatelessWidget {
+class LiquidGlass extends StatefulWidget {
   /// Creates a new [LiquidGlass] with the given [child] and [shape].
   ///
   /// This will expect a parent [LiquidGlassLayer] to be present in the widget
@@ -105,30 +110,155 @@ class LiquidGlass extends StatelessWidget {
   final String? debugLabel;
 
   @override
+  State<LiquidGlass> createState() => _LiquidGlassState();
+}
+
+class _LiquidGlassState extends State<LiquidGlass>
+    with SingleTickerProviderStateMixin {
+  // Lazily created, reused across animations
+  AnimationController? _controller;
+  CurvedAnimation? _curvedAnimation;
+
+  // Only set during active animation
+  LiquidShape? _fromShape;
+  LiquidGlassSettings? _fromSettings;
+
+  // Current animated values (null when not animating)
+  LiquidShape? _animatedShape;
+  LiquidGlassSettings? _animatedSettings;
+
+  // Cached context settings for animation when ownLayerSettings is null
+  LiquidGlassSettings? _contextSettings;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Cache context settings for use in didUpdateWidget
+    // Only relevant when ownLayerSettings is null
+    if (widget.ownLayerSettings == null) {
+      _contextSettings = LiquidGlassSettings.of(context);
+    }
+  }
+
+  @override
+  void didUpdateWidget(LiquidGlass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final newSettings = widget.ownLayerSettings;
+    // Get duration from ownLayerSettings if available, otherwise from context
+    final effectiveSettings = newSettings ?? _contextSettings;
+    final duration = effectiveSettings?.animationDuration ?? Duration.zero;
+
+    final shapeChanged = widget.shape != oldWidget.shape;
+    final settingsChanged = newSettings != oldWidget.ownLayerSettings;
+
+    if (!shapeChanged && !settingsChanged) return;
+
+    if (duration == Duration.zero) {
+      // No animation - clear any animation state
+      _clearAnimationState();
+      return;
+    }
+
+    // Start animation from current visual state (not old widget state)
+    // This handles interrupting animations smoothly
+    _fromShape = _animatedShape ?? oldWidget.shape;
+    // Only animate settings if we have ownLayerSettings
+    _fromSettings = newSettings != null
+        ? (_animatedSettings ?? oldWidget.ownLayerSettings)
+        : null;
+
+    _startAnimation(
+      duration,
+      effectiveSettings?.animationCurve ?? Curves.easeInOut,
+    );
+  }
+
+  void _startAnimation(Duration duration, Curve curve) {
+    // Create controller lazily
+    _controller ??= AnimationController(vsync: this)
+      ..addListener(_onAnimationTick)
+      ..addStatusListener(_onAnimationStatus);
+
+    // Update duration if changed
+    if (_controller!.duration != duration) {
+      _controller!.duration = duration;
+    }
+
+    // Update curve
+    _curvedAnimation?.dispose();
+    _curvedAnimation = CurvedAnimation(parent: _controller!, curve: curve);
+
+    // Reset and start
+    _controller!.forward(from: 0);
+  }
+
+  void _onAnimationTick() {
+    final t = _curvedAnimation?.value ?? _controller!.value;
+
+    // Compute interpolated values
+    _animatedShape = LiquidShape.lerp(_fromShape, widget.shape, t);
+    _animatedSettings = _fromSettings != null && widget.ownLayerSettings != null
+        ? LiquidGlassSettings.lerp(_fromSettings!, widget.ownLayerSettings!, t)
+        : widget.ownLayerSettings;
+
+    setState(() {}); // Minimal rebuild
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _clearAnimationState();
+      setState(() {}); // Final rebuild with target values
+    }
+  }
+
+  void _clearAnimationState() {
+    _fromShape = null;
+    _fromSettings = null;
+    _animatedShape = null;
+    _animatedSettings = null;
+  }
+
+  @override
+  void dispose() {
+    _curvedAnimation?.dispose();
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // Use animated values if animating, otherwise widget values
+    final shape = _animatedShape ?? widget.shape;
+    final settings = _animatedSettings ?? widget.ownLayerSettings;
+
     // If we have our own layer settings, we create our own layer.
-    if (ownLayerSettings case final settings?) {
+    if (settings != null) {
       return LiquidGlassLayer(
         settings: settings,
         child: Builder(
-          builder: _buildGlassContent,
+          builder: (context) => _buildGlassContent(context, shape, settings),
         ),
       );
     }
 
-    return _buildGlassContent(context);
+    return _buildGlassContent(context, shape, null);
   }
 
-  Widget _buildGlassContent(BuildContext context) {
-    final settings = LiquidGlassSettings.of(context);
+  Widget _buildGlassContent(
+    BuildContext context,
+    LiquidShape shape,
+    LiquidGlassSettings? ownSettings,
+  ) {
+    final settings = ownSettings ?? LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
-    final resolvedFrosted = frosted ?? settings.isFrosted;
+    final resolvedFrosted = widget.frosted ?? settings.isFrosted;
 
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
-      clipBehavior: clipBehavior,
+      clipBehavior: widget.clipBehavior,
       child: GlassGlowLayer(
-        child: child,
+        child: widget.child,
       ),
     );
 
@@ -140,7 +270,7 @@ class LiquidGlass extends StatelessWidget {
         settings: settings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
-        glassContainsChild: glassContainsChild,
+        glassContainsChild: widget.glassContainsChild,
         frosted: resolvedFrosted,
         child: glassChild,
       );
@@ -154,7 +284,7 @@ class LiquidGlass extends StatelessWidget {
         settings: settings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
-        glassContainsChild: glassContainsChild,
+        glassContainsChild: widget.glassContainsChild,
         frosted: resolvedFrosted,
         child: builtChild,
       ),

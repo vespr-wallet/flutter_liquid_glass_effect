@@ -181,6 +181,8 @@ class LiquidGlassSettings with EquatableMixin {
     this.frosted = true,
     this.liquidGlassConfigs = const LiquidGlassConfigs(),
     this.fakeGlassConfigs = const FakeGlassConfigs(),
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.animationCurve = Curves.easeInOut,
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -200,6 +202,8 @@ class LiquidGlassSettings with EquatableMixin {
       refraction: 5.0,
       refractionFrostedMultiplier: 2.0,
     ),
+    Duration animationDuration = const Duration(milliseconds: 300),
+    Curve animationCurve = Curves.easeInOut,
   }) : this(
           thickness: depth,
           lightIntensity: lightIntensity / 100,
@@ -214,6 +218,8 @@ class LiquidGlassSettings with EquatableMixin {
             chromaticAberration: 4 * (dispersion / 100),
           ),
           fakeGlassConfigs: fakeGlassConfigs,
+          animationDuration: animationDuration,
+          animationCurve: animationCurve,
         );
 
   /// A minimal glass effect with no lighting or chromatic aberration.
@@ -234,6 +240,8 @@ class LiquidGlassSettings with EquatableMixin {
       refraction: 5.0,
       refractionFrostedMultiplier: 2.0,
     ),
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.animationCurve = Curves.easeInOut,
   })  : lightAngle = 0,
         lightIntensity = 0,
         ambientStrength = 0;
@@ -256,6 +264,8 @@ class LiquidGlassSettings with EquatableMixin {
       refraction: 5.0,
       refractionFrostedMultiplier: 2.0,
     ),
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.animationCurve = Curves.easeInOut,
   })  : lightAngle = pi / 4,
         lightIntensity = 0.3,
         ambientStrength = 0;
@@ -290,6 +300,7 @@ class LiquidGlassSettings with EquatableMixin {
       refraction: 0,
       refractionFrostedMultiplier: 1,
     ),
+    // Animation fields use defaults (Duration.zero, Curves.easeInOut)
   );
 
   /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
@@ -378,6 +389,27 @@ class LiquidGlassSettings with EquatableMixin {
   /// better performance.
   final FakeGlassConfigs fakeGlassConfigs;
 
+  /// Duration for implicit animations when shape or settings change.
+  ///
+  /// When set to a non-zero duration (the default is 300ms), changes to
+  /// [LiquidShape] and [LiquidGlassSettings] will animate smoothly over this
+  /// duration. Set to [Duration.zero] to disable animations and make changes
+  /// instant with no animation overhead.
+  ///
+  /// This field is not interpolated during [lerp] - it controls animation
+  /// behavior rather than being animated itself.
+  final Duration animationDuration;
+
+  /// The curve to use for implicit animations.
+  ///
+  /// Only applies when [animationDuration] is non-zero.
+  ///
+  /// Defaults to [Curves.easeInOut].
+  ///
+  /// This field is not interpolated during [lerp] - it controls animation
+  /// behavior rather than being animated itself.
+  final Curve animationCurve;
+
   /// Whether fake glass mode should be used.
   ///
   /// Returns true if [FakeGlassConfigs.forceEnabled] is true or if Impeller
@@ -397,6 +429,8 @@ class LiquidGlassSettings with EquatableMixin {
     bool? frosted,
     LiquidGlassConfigs? liquidGlassConfigs,
     FakeGlassConfigs? fakeGlassConfigs,
+    Duration? animationDuration,
+    Curve? animationCurve,
   }) =>
       LiquidGlassSettings(
         glassColor: glassColor ?? this.glassColor,
@@ -409,6 +443,8 @@ class LiquidGlassSettings with EquatableMixin {
         frosted: frosted ?? this.frosted,
         liquidGlassConfigs: liquidGlassConfigs ?? this.liquidGlassConfigs,
         fakeGlassConfigs: fakeGlassConfigs ?? this.fakeGlassConfigs,
+        animationDuration: animationDuration ?? this.animationDuration,
+        animationCurve: animationCurve ?? this.animationCurve,
       );
 
   /// Linearly interpolates between two [LiquidGlassSettings].
@@ -417,6 +453,10 @@ class LiquidGlassSettings with EquatableMixin {
   /// where 0.0 returns [a] and 1.0 returns [b].
   ///
   /// Boolean properties ([frosted]) switch at t >= 0.5.
+  ///
+  /// Note: [animationDuration] and [animationCurve] are not interpolated -
+  /// the destination (b) values are always used since they control animation
+  /// behavior rather than being animated themselves.
   ///
   /// Example:
   /// ```dart
@@ -467,6 +507,9 @@ class LiquidGlassSettings with EquatableMixin {
         b.fakeGlassConfigs,
         t,
       ),
+      // Animation fields use destination values (not interpolated)
+      animationDuration: b.animationDuration,
+      animationCurve: b.animationCurve,
     );
   }
 
@@ -482,5 +525,7 @@ class LiquidGlassSettings with EquatableMixin {
         frosted,
         liquidGlassConfigs,
         fakeGlassConfigs,
+        animationDuration,
+        animationCurve,
       ];
 }

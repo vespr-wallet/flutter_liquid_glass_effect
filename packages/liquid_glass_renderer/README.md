@@ -152,7 +152,7 @@ class MyGlassWidget extends StatelessWidget {
             child: LiquidGlassLayer(
               settings: const LiquidGlassSettings(
                 thickness: 20,
-                blur: 10,
+                frostIntensity: 10,
                 glassColor: Color(0x33FFFFFF),
               ),
               child: LiquidGlass(
@@ -182,7 +182,7 @@ If you need a single glass shape with custom settings and don't want to create a
 LiquidGlass.withOwnLayer(
   settings: const LiquidGlassSettings(
     thickness: 15,
-    blur: 8,
+    frostIntensity: 8,
   ),
   shape: LiquidRoundedSuperellipse(borderRadius: 30),
   child: const SizedBox.square(dimension: 100),
@@ -212,7 +212,7 @@ To blend multiple glass shapes together seamlessly, wrap them in a `LiquidGlassB
 LiquidGlassLayer(
   settings: const LiquidGlassSettings(
     thickness: 20,
-    blur: 10,
+    frostIntensity: 10,
   ),
   child: LiquidGlassBlendGroup(
     blend: 20.0, // Controls how much shapes blend together
@@ -266,7 +266,7 @@ Here's a breakdown of the key settings:
 
 -   `glassColor`: The color tint of the glass. The alpha channel controls the intensity.
 -   `thickness`: How much the glass refracts the background (higher = more distortion).
--   `blur`: Background blur strength (0 = no blur).
+-   `frostIntensity`: Background blur/frost strength (0 = no blur).
 -   `refractiveIndex`: The refractive index of the glass material (1.0 = no refraction, ~1.5 = realistic glass).
 -   `lightAngle`, `lightIntensity`: Control the direction and brightness of the virtual light source, creating highlights.
 -   `ambientStrength`: The intensity of ambient light on the glass.
@@ -277,14 +277,14 @@ Here's a breakdown of the key settings:
 
 Increasing saturation when using colored glass helps achieve an Apple-like aesthetic.
 
-### Adding Blur
+### Adding Blur (Frost)
 
-You can apply a background blur using the `blur` property in `LiquidGlassSettings`. This is independent of the glass refraction effect.
+You can apply a background blur using the `frostIntensity` property in `LiquidGlassSettings`. This is independent of the glass refraction effect.
 
 ```dart
 LiquidGlassLayer(
   settings: const LiquidGlassSettings(
-    blur: 10.0,
+    frostIntensity: 10.0,
     thickness: 20,
   ),
   child: // ... your glass widgets
@@ -306,7 +306,7 @@ For scenarios where performance is critical or you need a glass-like appearance 
 LiquidGlassLayer(
   fake: true,
   settings: const LiquidGlassSettings(
-    blur: 10,
+    frostIntensity: 10,
     glassColor: Color(0x33FFFFFF),
   ),
   child: LiquidGlass(
@@ -320,7 +320,7 @@ LiquidGlassLayer(
 )
 ```
 
-**Note:** Fake glass mode does not support `thickness` or `refractiveIndex` properties since it doesn't perform actual refraction.
+**Note:** Fake glass mode ignores `refractiveIndex`; `thickness` only affects faux lighting/edge effects, not true refraction.
 
 ### `GlassGlow`: Interactive Touch Effects
 

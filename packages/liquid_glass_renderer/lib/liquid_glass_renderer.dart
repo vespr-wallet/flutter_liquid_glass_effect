@@ -1,7 +1,8 @@
 /// Liquid Glass Effect for Flutter
 ///
 /// A high-performance glass/frosted effect renderer using custom shaders.
-/// Requires Impeller rendering engine (uses backdrop filters on Skia).
+/// Real glass mode requires Impeller; on Skia it falls back to fake glass
+/// (backdrop-filter-based) rendering, or when `LiquidGlassLayer(fake: true)`.
 ///
 /// ## Quick Start
 ///

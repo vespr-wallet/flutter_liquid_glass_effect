@@ -107,7 +107,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
   Widget build(BuildContext context) {
     final useFakeGlass = widget.fake || !ImageFilter.isShaderFilterSupported;
 
-    if (useFakeGlass && !ImageFilter.isShaderFilterSupported) {
+    // Only warn when falling back implicitly (not when user explicitly set fake: true)
+    if (!widget.fake && !ImageFilter.isShaderFilterSupported) {
       logger.warning(
           'LiquidGlassLayer is only supported when using Impeller at the '
           'moment. Falling back to FakeGlass for LiquidGlassLayer. '
@@ -218,6 +219,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   LiquidGlassSettings get fakeGlassSettings => settings;
 
+  @override
+  set settings(LiquidGlassSettings value) {
+    if (settings == value) return;
+    invalidateFakeGlassCache();
+    super.settings = value;
+  }
+
   final _shaderHandle = LayerHandle<BackdropFilterLayer>();
   final _blurLayerHandle = LayerHandle<BackdropFilterLayer>();
   final _clipPathLayerHandle = LayerHandle<ClipPathLayer>();
@@ -300,13 +308,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     } else {
       // Non-frosted: only refraction (and optionally saturation)
       combinedFilter = refractionFilter;
-      if (saturationFilter != null && combinedFilter != null) {
-        combinedFilter = ImageFilter.compose(
-          inner: saturationFilter,
-          outer: combinedFilter,
-        );
-      } else if (saturationFilter != null) {
-        combinedFilter = saturationFilter;
+      if (saturationFilter != null) {
+        combinedFilter = combinedFilter == null
+            ? saturationFilter
+            : ImageFilter.compose(
+                inner: saturationFilter,
+                outer: combinedFilter,
+              );
       }
     }
 

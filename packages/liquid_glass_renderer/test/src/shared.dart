@@ -4,9 +4,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
 const settingsWithoutLighting = LiquidGlassSettings(
-  chromaticAberration: 0,
   lightIntensity: 0,
   frosted: false,
+  liquidGlassConfigs: LiquidGlassConfigs(
+    chromaticAberration: 0,
+  ),
 );
 
 Widget buildWithGridPaper(Widget child) {

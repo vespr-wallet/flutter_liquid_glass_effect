@@ -73,11 +73,13 @@ class BasicApp extends HookWidget {
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
                     glassColor: Colors.white24,
-                    fakeGlassRefraction: 5.0,
-                    fakeGlassRefractionFrostedMultiplier: 1.5,
+                    fakeGlassConfigs: FakeGlassConfigs(
+                      forceEnabled: fake.value,
+                      refraction: 5.0,
+                      refractionFrostedMultiplier: 1.5,
+                    ),
                   );
                   return LiquidGlassLayer(
-                    fake: fake.value,
                     settings: settings.copyWith(lightAngle: light.value),
                     child: Column(
                       spacing: 16,
@@ -166,7 +168,7 @@ class BasicApp extends HookWidget {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: LiquidGlassBottomBar(
-                  fake: fake.value,
+                  forceFakeGlass: fake.value,
                   extraButton: LiquidGlassBottomBarExtraButton(
                     icon: CupertinoIcons.add_circled,
                     onTap: () {

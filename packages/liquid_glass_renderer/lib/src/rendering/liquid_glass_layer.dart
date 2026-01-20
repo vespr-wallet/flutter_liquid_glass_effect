@@ -18,6 +18,14 @@ import 'package:meta/meta.dart';
 /// Represents a layer of multiple [LiquidGlass] shapes that have shared
 /// [LiquidGlassSettings] and will be rendered together.
 ///
+/// **Impeller Required:** Liquid glass rendering requires Impeller to be
+/// enabled. On non-Impeller devices (Skia), the effect automatically falls
+/// back to fake glass rendering using standard backdrop filters.
+///
+/// **Performance:** Impeller-based liquid glass provides better visual quality
+/// AND better performance than fake glass, because it uses custom shaders that
+/// run entirely on the GPU.
+///
 /// If you create a [LiquidGlassLayer] with one or more [LiquidGlass] widgets,
 /// the liquid glass effect will be rendered where this layer is.
 ///
@@ -54,10 +62,13 @@ import 'package:meta/meta.dart';
 /// ```
 class LiquidGlassLayer extends StatefulWidget {
   /// Creates a new [LiquidGlassLayer] with the given [child] and [settings].
+  ///
+  /// The rendering mode (liquid glass vs fake glass) is automatically
+  /// determined based on platform support. Impeller-enabled devices use
+  /// shader-based liquid glass; Skia devices fall back to fake glass.
   const LiquidGlassLayer({
     required this.child,
     this.settings = const LiquidGlassSettings(),
-    this.fake = false,
     this.useBackdropGroup = false,
     super.key,
   });
@@ -71,9 +82,6 @@ class LiquidGlassLayer extends StatefulWidget {
   /// The settings for the liquid glass effect for all shapes in this layer.
   final LiquidGlassSettings settings;
 
-  /// Whether to use fake glass mode (backdrop filters) instead of shaders.
-  final bool fake;
-
   /// Whether to look up the tree for a [BackdropGroup] to use for this layer's
   /// blur.
   ///
@@ -81,8 +89,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// background blur, setting this to true can improve performance by sharing
   /// the same backdrop.
   ///
-  /// If [fake] is true, this will be ignored, as this widget will already use
-  /// a shared backdrop for the fake glass effect.
+  /// When fake glass mode is active (non-Impeller devices), this will be
+  /// ignored as the widget already uses a shared backdrop internally.
   ///
   /// Defaults to false.
   final bool useBackdropGroup;
@@ -105,25 +113,23 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
   @override
   Widget build(BuildContext context) {
-    final useFakeGlass = widget.fake || !ImageFilter.isShaderFilterSupported;
-
-    // Only warn when falling back implicitly (not when user explicitly set fake: true)
-    if (!widget.fake && !ImageFilter.isShaderFilterSupported) {
-      logger.warning(
-          'LiquidGlassLayer is only supported when using Impeller at the '
-          'moment. Falling back to FakeGlass for LiquidGlassLayer. '
-          'To prevent this warning, enable Impeller, or set '
-          'LiquidGlassLayer.fake to true before you use liquid glass widgets '
-          'on Skia.');
-    }
+    // Use fake glass when forced via settings or when Impeller is not available
+    final useFakeGlass = widget.settings.shouldUseFakeGlass;
 
     if (useFakeGlass) {
+      // Only log info if we're falling back due to platform, not forced
+      if (!widget.settings.fakeGlassConfigs.forceEnabled) {
+        logger.info(
+          'Shader filters not supported (Skia mode). '
+          'Using fake glass fallback. For best visual quality and performance, '
+          'enable Impeller.',
+        );
+      }
       // Use the same rendering pipeline as real glass, but with null shader
       // This enables unified widget grouping and layer behavior
       return RepaintBoundary(
         child: LiquidGlassRenderScope(
           settings: widget.settings,
-          useFake: true,
           child: InheritedGeometryRenderLink(
             link: _link,
             child: BackdropGroup(
@@ -259,9 +265,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ImageFilter? _buildFakeGlassFilter({
     required bool frosted,
   }) {
-    final baseRefraction = settings.fakeGlassRefraction;
+    final baseRefraction = settings.fakeGlassConfigs.refraction;
     final refraction = frosted
-        ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
+        ? baseRefraction * settings.fakeGlassConfigs.refractionFrostedMultiplier
         : baseRefraction;
 
     // Use layer center for the refraction effect to ensure consistent
@@ -275,7 +281,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // Boost saturation to match real glass shader appearance
     final boostedSaturation = (1.0 +
-            (settings.effectiveSaturation - 1.0) *
+            (settings.saturation - 1.0) *
                 kFakeGlassSaturationMultiplier)
         .clamp(0.0, double.infinity);
     final saturationFilter = boostedSaturation != 1.0
@@ -286,8 +292,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     if (frosted) {
       final blurFilter = ImageFilter.blur(
-        sigmaX: settings.effectiveBlur,
-        sigmaY: settings.effectiveBlur,
+        sigmaX: settings.frostIntensity,
+        sigmaY: settings.frostIntensity,
         tileMode: TileMode.mirror,
       );
 
@@ -368,13 +374,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ..filter = ImageFilter.shader(renderShader!);
 
     // 1. Apply blur ONLY to frosted shapes
-    if (frostedShapes.isNotEmpty && settings.effectiveBlur > 0) {
+    if (frostedShapes.isNotEmpty && settings.frostIntensity > 0) {
       final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
         ..backdropKey = backdropKey
         ..filter = ImageFilter.blur(
           tileMode: TileMode.mirror,
-          sigmaX: settings.effectiveBlur,
-          sigmaY: settings.effectiveBlur,
+          sigmaX: settings.frostIntensity,
+          sigmaY: settings.frostIntensity,
         );
 
       final frostedClipPath = Path();
@@ -496,7 +502,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       }
     }
 
-    // 1. Apply combined filter (blur + refraction + saturation) to frosted shapes
+    // 1. Apply combined filter (blur + refraction + saturation) 
+    // to frosted shapes
     if (frostedShapes.isNotEmpty) {
       final combinedFilter = _buildFakeGlassFilter(
         frosted: true,
@@ -547,7 +554,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                     transformedPath,
                     transformedBounds,
                     frosted: true,
-                    visibility: settings.visibility,
                   );
                 }
               },
@@ -584,7 +590,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 transformedPath,
                 transformedBounds,
                 frosted: true,
-                visibility: settings.visibility,
               );
             }
           },
@@ -647,7 +652,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                     transformedPath,
                     transformedBounds,
                     frosted: false,
-                    visibility: settings.visibility,
                   );
                 }
               },
@@ -684,7 +688,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 transformedPath,
                 transformedBounds,
                 frosted: false,
-                visibility: settings.visibility,
               );
             }
           },

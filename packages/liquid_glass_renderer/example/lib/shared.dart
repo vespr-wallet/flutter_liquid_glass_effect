@@ -216,15 +216,18 @@ class SettingsSheet extends HookWidget {
                           children: [
                             Text('Chromatic Aberration:'),
                             Text(
-                              settings.chromaticAberration.toStringAsFixed(2),
+                              settings.liquidGlassConfigs.chromaticAberration
+                                  .toStringAsFixed(2),
                             ),
                           ],
                         ),
                         CupertinoSlider(
-                          value: settings.chromaticAberration,
+                          value:
+                              settings.liquidGlassConfigs.chromaticAberration,
                           onChanged: (value) {
                             settingsNotifier.value = settings.copyWith(
-                              chromaticAberration: value,
+                              liquidGlassConfigs: settings.liquidGlassConfigs
+                                  .copyWith(chromaticAberration: value),
                             );
                           },
                           min: 0,
@@ -251,14 +254,18 @@ class SettingsSheet extends HookWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Refractive Index:'),
-                            Text(settings.refractiveIndex.toStringAsFixed(2)),
+                            Text(
+                              settings.liquidGlassConfigs.refractiveIndex
+                                  .toStringAsFixed(2),
+                            ),
                           ],
                         ),
                         CupertinoSlider(
-                          value: settings.refractiveIndex,
+                          value: settings.liquidGlassConfigs.refractiveIndex,
                           onChanged: (value) {
                             settingsNotifier.value = settings.copyWith(
-                              refractiveIndex: value,
+                              liquidGlassConfigs: settings.liquidGlassConfigs
+                                  .copyWith(refractiveIndex: value),
                             );
                           },
                           min: 1,

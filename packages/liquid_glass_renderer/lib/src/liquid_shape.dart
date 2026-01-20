@@ -41,9 +41,9 @@ sealed class LiquidShape extends OutlinedBorder with EquatableMixin {
   /// where 0.0 returns [a] and 1.0 returns [b].
   ///
   /// **Same-type shapes**: Parameters are interpolated smoothly.
-  /// - [LiquidRoundedSuperellipse] to [LiquidRoundedSuperellipse]: borderRadius lerps
-  /// - [LiquidRoundedRectangle] to [LiquidRoundedRectangle]: borderRadius lerps
-  /// - [LiquidOval] to [LiquidOval]: returns as-is (no parameters)
+  /// - [LiquidRoundedSuperellipse]: borderRadius lerps
+  /// - [LiquidRoundedRectangle]: borderRadius lerps
+  /// - [LiquidOval]: returns as-is (no parameters)
   ///
   /// **Different-type shapes**: Returns [a] for t < 0.5, [b] for t >= 0.5.
   /// For smooth cross-type transitions, consider path morphing techniques.

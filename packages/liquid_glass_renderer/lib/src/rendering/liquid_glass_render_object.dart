@@ -113,14 +113,14 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (shader == null) return;
     shader.setFloatUniforms(initialIndex: 6, (value) {
       value
-        ..setColor(settings.effectiveGlassColor)
+        ..setColor(settings.glassColor)
         ..setFloats([
-          settings.refractiveIndex,
-          settings.effectiveChromaticAberration,
-          settings.effectiveThickness,
-          settings.effectiveLightIntensity,
-          settings.effectiveAmbientStrength,
-          settings.effectiveSaturation,
+          settings.liquidGlassConfigs.refractiveIndex,
+          settings.liquidGlassConfigs.chromaticAberration,
+          settings.thickness,
+          settings.lightIntensity,
+          settings.ambientStrength,
+          settings.saturation,
         ])
         ..setOffset(
           Offset(
@@ -175,7 +175,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
     _paintBounds = boundingBox;
 
-    if (settings.effectiveThickness <= 0) {
+    if (settings.thickness <= 0) {
       _clearGeometryImage();
       paintShapeContents(
         context,

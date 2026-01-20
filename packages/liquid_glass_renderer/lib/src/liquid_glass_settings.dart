@@ -6,7 +6,161 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 
+/// Configuration specific to Impeller/shader-based liquid glass rendering.
+///
+/// These settings control the shader-based glass effects that require Impeller.
+/// Liquid glass using these settings provides superior visual quality and
+/// better performance compared to fake glass rendering.
+class LiquidGlassConfigs with EquatableMixin {
+  /// Creates [LiquidGlassConfigs] with the given values.
+  const LiquidGlassConfigs({
+    this.chromaticAberration = 0.01,
+    this.refractiveIndex = 1.2,
+  });
+
+  /// The chromatic aberration of the glass effect.
+  ///
+  /// Creates color fringes around refracted content. Higher values create more
+  /// pronounced color separation.
+  ///
+  /// Defaults to 0.01.
+  final double chromaticAberration;
+
+  /// The refractive index of the glass material.
+  ///
+  /// Controls how much light bends when passing through the glass.
+  /// Higher values create more pronounced distortion.
+  ///
+  /// Defaults to 1.2.
+  final double refractiveIndex;
+
+  /// Creates a copy with the given values replaced.
+  LiquidGlassConfigs copyWith({
+    double? chromaticAberration,
+    double? refractiveIndex,
+  }) =>
+      LiquidGlassConfigs(
+        chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+        refractiveIndex: refractiveIndex ?? this.refractiveIndex,
+      );
+
+  /// Linearly interpolates between two [LiquidGlassConfigs].
+  static LiquidGlassConfigs lerp(
+    LiquidGlassConfigs a,
+    LiquidGlassConfigs b,
+    double t,
+  ) {
+    return LiquidGlassConfigs(
+      chromaticAberration:
+          ui.lerpDouble(a.chromaticAberration, b.chromaticAberration, t)!,
+      refractiveIndex: ui.lerpDouble(a.refractiveIndex, b.refractiveIndex, t)!,
+    );
+  }
+
+  @override
+  List<Object?> get props => [chromaticAberration, refractiveIndex];
+}
+
+/// Configuration specific to fake glass rendering (Skia fallback).
+///
+/// These settings control the backdrop filter-based glass effects used when
+/// Impeller is not available. Fake glass uses standard Flutter backdrop filters
+/// to approximate the glass effect.
+///
+/// **Why fake glass exists:** The liquid glass effect requires custom fragment
+/// shaders for the refraction calculations. Skia does not support shader-based
+/// backdrop filters, meaning the only way to achieve similar effects would be
+/// to render the backdrop to an image first - which would be prohibitively
+/// expensive. Fake glass approximates the effect using standard blur and scale
+/// transforms, which Skia handles efficiently.
+///
+/// Note: Fake glass is a fallback for non-Impeller environments. Impeller-based
+/// liquid glass provides better visual fidelity AND better performance.
+class FakeGlassConfigs with EquatableMixin {
+  /// Creates [FakeGlassConfigs] with the given values.
+  const FakeGlassConfigs({
+    this.forceEnabled = false,
+    this.refraction = 5.0,
+    this.refractionFrostedMultiplier = 1.5,
+  });
+
+  /// Whether to force fake glass rendering even on Impeller.
+  ///
+  /// When true, fake glass rendering will be used regardless of whether
+  /// Impeller is available. This is useful for testing and demos where you
+  /// want to compare liquid glass vs fake glass side by side.
+  ///
+  /// Defaults to false (auto-detect based on platform support).
+  final bool forceEnabled;
+
+  /// The fake refraction edge offset in pixels.
+  ///
+  /// This creates a non-uniform scale effect to simulate refraction when
+  /// custom shaders are not available (non-Impeller devices).
+  ///
+  /// The value specifies how many pixels the edges should appear to shift
+  /// inward. Each axis is scaled independently, so wide buttons and tall
+  /// buttons will have consistent edge displacement.
+  ///
+  /// Set to 0 to disable.
+  ///
+  /// Defaults to 5.0 pixels.
+  final double refraction;
+
+  /// Multiplier applied to [refraction] when the glass is frosted.
+  ///
+  /// Frosted glass typically has more pronounced refraction due to the
+  /// diffusion of light. This multiplier increases the magnification effect
+  /// when blur is applied.
+  ///
+  /// Defaults to 1.5 (1.5x the refraction when frosted).
+  final double refractionFrostedMultiplier;
+
+  /// Creates a copy with the given values replaced.
+  FakeGlassConfigs copyWith({
+    bool? forceEnabled,
+    double? refraction,
+    double? refractionFrostedMultiplier,
+  }) =>
+      FakeGlassConfigs(
+        forceEnabled: forceEnabled ?? this.forceEnabled,
+        refraction: refraction ?? this.refraction,
+        refractionFrostedMultiplier:
+            refractionFrostedMultiplier ?? this.refractionFrostedMultiplier,
+      );
+
+  /// Linearly interpolates between two [FakeGlassConfigs].
+  ///
+  /// Note: [forceEnabled] switches at t >= 0.5 (boolean lerp).
+  static FakeGlassConfigs lerp(
+    FakeGlassConfigs a,
+    FakeGlassConfigs b,
+    double t,
+  ) {
+    return FakeGlassConfigs(
+      forceEnabled: t < 0.5 ? a.forceEnabled : b.forceEnabled,
+      refraction: ui.lerpDouble(a.refraction, b.refraction, t)!,
+      refractionFrostedMultiplier: ui.lerpDouble(
+        a.refractionFrostedMultiplier,
+        b.refractionFrostedMultiplier,
+        t,
+      )!,
+    );
+  }
+
+  @override
+  List<Object?> get props =>
+      [forceEnabled, refraction, refractionFrostedMultiplier];
+}
+
 /// Represents the settings for a liquid glass effect.
+///
+/// Liquid glass rendering requires Impeller to be enabled. On non-Impeller
+/// devices, the effect automatically falls back to fake glass rendering using
+/// standard backdrop filters.
+///
+/// **Performance note:** Impeller-based liquid glass actually provides better
+/// performance than fake glass, in addition to superior visual quality.
 class LiquidGlassSettings with EquatableMixin {
   /// Creates a new [LiquidGlassSettings] with the given settings.
   ///
@@ -17,19 +171,16 @@ class LiquidGlassSettings with EquatableMixin {
   /// Note: If [frostIntensity] is <= 0, [isFrosted] will return false regardless
   /// of [frosted].
   const LiquidGlassSettings({
-    this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 20,
     this.frostIntensity = 5,
-    this.chromaticAberration = .01,
     this.lightAngle = pi / 4,
     this.lightIntensity = .5,
     this.ambientStrength = 0,
-    this.refractiveIndex = 1.2,
     this.saturation = 1.5,
     this.frosted = true,
-    this.fakeGlassRefraction = 5.0,
-    this.fakeGlassRefractionFrostedMultiplier = 1.5,
+    this.liquidGlassConfigs = const LiquidGlassConfigs(),
+    this.fakeGlassConfigs = const FakeGlassConfigs(),
   });
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
@@ -40,28 +191,29 @@ class LiquidGlassSettings with EquatableMixin {
     required double depth,
     required double dispersion,
     required double frost,
-    double visibility = 1.0,
     double lightIntensity = 50,
     double lightAngle = pi / 4,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
+    double saturation = 1.5,
     bool frosted = true,
-    double fakeGlassRefraction = 5.0,
-    double fakeGlassRefractionFrostedMultiplier = 2.0,
+    FakeGlassConfigs fakeGlassConfigs = const FakeGlassConfigs(
+      refraction: 5.0,
+      refractionFrostedMultiplier: 2.0,
+    ),
   }) : this(
-          visibility: visibility,
-          refractiveIndex: 1 + (refraction / 100) * 0.2,
           thickness: depth,
-          chromaticAberration: 4 * (dispersion / 100),
           lightIntensity: lightIntensity / 100,
           frostIntensity: frost,
           lightAngle: lightAngle,
           ambientStrength: 0.1,
-          saturation: 1.5,
+          saturation: saturation,
           glassColor: glassColor,
           frosted: frosted,
-          fakeGlassRefraction: fakeGlassRefraction,
-          fakeGlassRefractionFrostedMultiplier:
-              fakeGlassRefractionFrostedMultiplier,
+          liquidGlassConfigs: LiquidGlassConfigs(
+            refractiveIndex: 1 + (refraction / 100) * 0.2,
+            chromaticAberration: 4 * (dispersion / 100),
+          ),
+          fakeGlassConfigs: fakeGlassConfigs,
         );
 
   /// A minimal glass effect with no lighting or chromatic aberration.
@@ -69,17 +221,20 @@ class LiquidGlassSettings with EquatableMixin {
   /// Good for subtle, unobtrusive glass effects where you just want
   /// refraction and blur without decorative lighting.
   const LiquidGlassSettings.minimal({
-    this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 15,
     this.frostIntensity = 4,
-    this.refractiveIndex = 1.15,
     this.saturation = 1.2,
     this.frosted = true,
-    this.fakeGlassRefraction = 5.0,
-    this.fakeGlassRefractionFrostedMultiplier = 2.0,
-  })  : chromaticAberration = 0,
-        lightAngle = 0,
+    this.liquidGlassConfigs = const LiquidGlassConfigs(
+      chromaticAberration: 0,
+      refractiveIndex: 1.15,
+    ),
+    this.fakeGlassConfigs = const FakeGlassConfigs(
+      refraction: 5.0,
+      refractionFrostedMultiplier: 2.0,
+    ),
+  })  : lightAngle = 0,
         lightIntensity = 0,
         ambientStrength = 0;
 
@@ -88,19 +243,54 @@ class LiquidGlassSettings with EquatableMixin {
   /// Balanced settings with moderate refraction, light blur, and
   /// subtle lighting. A good starting point for most applications.
   const LiquidGlassSettings.subtle({
-    this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 12,
     this.frostIntensity = 3,
-    this.refractiveIndex = 1.1,
     this.saturation = 1.3,
     this.frosted = true,
-    this.fakeGlassRefraction = 5.0,
-    this.fakeGlassRefractionFrostedMultiplier = 2.0,
-  })  : chromaticAberration = 0.005,
-        lightAngle = pi / 4,
+    this.liquidGlassConfigs = const LiquidGlassConfigs(
+      chromaticAberration: 0.005,
+      refractiveIndex: 1.1,
+    ),
+    this.fakeGlassConfigs = const FakeGlassConfigs(
+      refraction: 5.0,
+      refractionFrostedMultiplier: 2.0,
+    ),
+  })  : lightAngle = pi / 4,
         lightIntensity = 0.3,
         ambientStrength = 0;
+
+  /// A flat, non-glass appearance with all effects disabled.
+  ///
+  /// Use this as a starting or ending point when animating between a flat
+  /// surface and a glass effect using [LiquidGlassSettings.lerp].
+  ///
+  /// Example:
+  /// ```dart
+  /// // Animate from flat to glass
+  /// final settings = LiquidGlassSettings.lerp(
+  ///   LiquidGlassSettings.flat,
+  ///   LiquidGlassSettings(thickness: 20, frostIntensity: 8),
+  ///   animationValue,
+  /// );
+  /// ```
+  static const flat = LiquidGlassSettings(
+    thickness: 0,
+    frostIntensity: 0,
+    lightAngle: 0,
+    lightIntensity: 0,
+    ambientStrength: 0,
+    saturation: 1,
+    frosted: false,
+    liquidGlassConfigs: LiquidGlassConfigs(
+      chromaticAberration: 0,
+      refractiveIndex: 1,
+    ),
+    fakeGlassConfigs: FakeGlassConfigs(
+      refraction: 0,
+      refractionFrostedMultiplier: 1,
+    ),
+  );
 
   /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
   ///
@@ -110,27 +300,15 @@ class LiquidGlassSettings with EquatableMixin {
     return LiquidGlassRenderScope.of(context).settings;
   }
 
-  /// A factor that can be used to scale all thickness-related properties.
-  ///
-  /// Defaults to 1.0.
-  final double visibility;
-
   /// The color tint of the glass effect.
   ///
   /// Opacity defines the intensity of the tint.
   final Color glassColor;
 
-  /// The effective glass color taking visibility into account.
-  Color get effectiveGlassColor =>
-      glassColor.withValues(alpha: glassColor.a * visibility);
-
   /// The thickness of the glass surface.
   ///
   /// Thicker surfaces refract the light more intensely.
   final double thickness;
-
-  /// The effective thickness taking visibility into account.
-  double get effectiveThickness => thickness * visibility;
 
   /// The blur intensity of the frosted glass effect.
   ///
@@ -139,21 +317,6 @@ class LiquidGlassSettings with EquatableMixin {
   ///
   /// Defaults to 5.
   final double frostIntensity;
-
-  /// The effective blur taking visibility into account.
-  /// Returns 0 if [frostIntensity] is <= 0.
-  double get effectiveBlur =>
-      frostIntensity > 0 ? frostIntensity * visibility : 0;
-
-  /// The chromatic aberration of the glass effect (WIP).
-  ///
-  /// This is a little ugly still.
-  ///
-  /// Higher values create more pronounced color fringes.
-  final double chromaticAberration;
-
-  /// The effective chromatic aberration taking visibility into account.
-  double get effectiveChromaticAberration => chromaticAberration * visibility;
 
   /// The angle of the light source in radians.
   ///
@@ -165,32 +328,20 @@ class LiquidGlassSettings with EquatableMixin {
   /// Higher values create more pronounced highlights.
   final double lightIntensity;
 
-  /// The effective light intensity taking visibility into account.
-  double get effectiveLightIntensity => lightIntensity * visibility;
-
   /// The strength of the ambient light.
   ///
   /// Higher values create more pronounced ambient light.
   final double ambientStrength;
 
-  /// The effective ambient strength taking visibility into account.
-  double get effectiveAmbientStrength => ambientStrength * visibility;
-
-  /// The strength of the refraction.
-  ///
-  /// Higher values create more pronounced refraction.
-  /// Defaults to 1.51
-  final double refractiveIndex;
-
   /// The saturation adjustment for pixels that shine through the glass.
   ///
   /// 1.0 means no change, values < 1.0 desaturate the background,
   /// values > 1.0 increase saturation.
-  /// Defaults to 1.0
+  ///
+  /// This setting is used by both liquid glass (Impeller) and fake glass (Skia).
+  ///
+  /// Defaults to 1.5.
   final double saturation;
-
-  /// The effective saturation taking visibility into account.
-  double get effectiveSaturation => 1 + (saturation - 1) * visibility;
 
   /// Whether glass shapes should apply backdrop blur by default.
   ///
@@ -208,63 +359,56 @@ class LiquidGlassSettings with EquatableMixin {
   /// Returns false if [frostIntensity] is <= 0, regardless of [frosted].
   bool get isFrosted => frosted && frostIntensity > 0;
 
-  /// The fake refraction edge offset in pixels used by fake glass mode.
+  /// Impeller/shader-specific liquid glass configuration.
   ///
-  /// This creates a non-uniform scale effect to simulate refraction when
-  /// custom shaders are not available (non-Impeller devices).
-  ///
-  /// The value specifies how many pixels the edges should appear to shift
-  /// inward. Each axis is scaled independently, so wide buttons and tall
-  /// buttons will have consistent edge displacement.
-  ///
-  /// Set to 0 to disable. This has no effect on [LiquidGlass] which uses
-  /// real shader-based refraction.
-  ///
-  /// Defaults to 5.0 pixels.
-  final double fakeGlassRefraction;
+  /// These settings control the shader-based glass effects that require
+  /// Impeller to be enabled. Liquid glass provides superior visual quality
+  /// and better performance compared to fake glass rendering.
+  final LiquidGlassConfigs liquidGlassConfigs;
 
-  /// Multiplier applied to [fakeGlassRefraction] when the glass is frosted.
+  /// Fake glass (Skia fallback) configuration.
   ///
-  /// Frosted glass typically has more pronounced refraction due to the
-  /// diffusion of light. This multiplier increases the magnification effect
-  /// when blur is applied.
+  /// These settings control the backdrop filter-based glass effects used
+  /// when Impeller is not available, or when [FakeGlassConfigs.forceEnabled]
+  /// is true. Fake glass uses standard Flutter backdrop filters to
+  /// approximate the glass effect.
   ///
-  /// Defaults to 2.0 (double the refraction when frosted).
-  final double fakeGlassRefractionFrostedMultiplier;
+  /// Note: Fake glass is a fallback for non-Impeller environments.
+  /// Impeller-based liquid glass provides better visual fidelity AND
+  /// better performance.
+  final FakeGlassConfigs fakeGlassConfigs;
+
+  /// Whether fake glass mode should be used.
+  ///
+  /// Returns true if [FakeGlassConfigs.forceEnabled] is true or if Impeller
+  /// is not available (shader filters not supported).
+  bool get shouldUseFakeGlass =>
+      fakeGlassConfigs.forceEnabled || !ui.ImageFilter.isShaderFilterSupported;
 
   /// Creates a new [LiquidGlassSettings] with the given settings.
   LiquidGlassSettings copyWith({
-    double? visibility,
     Color? glassColor,
     double? thickness,
     double? frostIntensity,
-    double? chromaticAberration,
-    double? blend,
     double? lightAngle,
     double? lightIntensity,
     double? ambientStrength,
-    double? refractiveIndex,
     double? saturation,
     bool? frosted,
-    double? fakeGlassRefraction,
-    double? fakeGlassRefractionFrostedMultiplier,
+    LiquidGlassConfigs? liquidGlassConfigs,
+    FakeGlassConfigs? fakeGlassConfigs,
   }) =>
       LiquidGlassSettings(
-        visibility: visibility ?? this.visibility,
         glassColor: glassColor ?? this.glassColor,
         thickness: thickness ?? this.thickness,
         frostIntensity: frostIntensity ?? this.frostIntensity,
-        chromaticAberration: chromaticAberration ?? this.chromaticAberration,
         lightAngle: lightAngle ?? this.lightAngle,
         lightIntensity: lightIntensity ?? this.lightIntensity,
         ambientStrength: ambientStrength ?? this.ambientStrength,
-        refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
         frosted: frosted ?? this.frosted,
-        fakeGlassRefraction: fakeGlassRefraction ?? this.fakeGlassRefraction,
-        fakeGlassRefractionFrostedMultiplier:
-            fakeGlassRefractionFrostedMultiplier ??
-                this.fakeGlassRefractionFrostedMultiplier,
+        liquidGlassConfigs: liquidGlassConfigs ?? this.liquidGlassConfigs,
+        fakeGlassConfigs: fakeGlassConfigs ?? this.fakeGlassConfigs,
       );
 
   /// Linearly interpolates between two [LiquidGlassSettings].
@@ -276,11 +420,12 @@ class LiquidGlassSettings with EquatableMixin {
   ///
   /// Example:
   /// ```dart
+  /// // Animate from flat to glass
   /// final settings = LiquidGlassSettings.lerp(
-  ///   LiquidGlassSettings(visibility: 0, frostIntensity: 1),
-  ///   LiquidGlassSettings(visibility: 1, frostIntensity: 10),
-  ///   0.5,
-  /// ); // visibility: 0.5, frostIntensity: 5.5
+  ///   LiquidGlassSettings.flat(),
+  ///   LiquidGlassSettings(thickness: 20, frostIntensity: 8),
+  ///   animationValue,
+  /// );
   /// ```
   static LiquidGlassSettings lerp(
     LiquidGlassSettings a,
@@ -288,7 +433,6 @@ class LiquidGlassSettings with EquatableMixin {
     double t,
   ) {
     return LiquidGlassSettings(
-      visibility: ui.lerpDouble(a.visibility, b.visibility, t)!,
       glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
       thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
       frostIntensity: switch (t) {
@@ -308,38 +452,35 @@ class LiquidGlassSettings with EquatableMixin {
             return ui.lerpDouble(start, end, t)!;
           }(),
       },
-      chromaticAberration:
-          ui.lerpDouble(a.chromaticAberration, b.chromaticAberration, t)!,
       lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,
       lightIntensity: ui.lerpDouble(a.lightIntensity, b.lightIntensity, t)!,
       ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
-      refractiveIndex: ui.lerpDouble(a.refractiveIndex, b.refractiveIndex, t)!,
       saturation: ui.lerpDouble(a.saturation, b.saturation, t)!,
       frosted: t < 0.5 ? a.frosted : b.frosted,
-      fakeGlassRefraction:
-          ui.lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t)!,
-      fakeGlassRefractionFrostedMultiplier: ui.lerpDouble(
-        a.fakeGlassRefractionFrostedMultiplier,
-        b.fakeGlassRefractionFrostedMultiplier,
+      liquidGlassConfigs: LiquidGlassConfigs.lerp(
+        a.liquidGlassConfigs,
+        b.liquidGlassConfigs,
         t,
-      )!,
+      ),
+      fakeGlassConfigs: FakeGlassConfigs.lerp(
+        a.fakeGlassConfigs,
+        b.fakeGlassConfigs,
+        t,
+      ),
     );
   }
 
   @override
   List<Object?> get props => [
-        visibility,
         glassColor,
         thickness,
         frostIntensity,
-        chromaticAberration,
         lightAngle,
         lightIntensity,
         ambientStrength,
-        refractiveIndex,
         saturation,
         frosted,
-        fakeGlassRefraction,
-        fakeGlassRefractionFrostedMultiplier,
+        liquidGlassConfigs,
+        fakeGlassConfigs,
       ];
 }

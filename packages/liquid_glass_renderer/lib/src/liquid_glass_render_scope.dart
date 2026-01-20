@@ -8,13 +8,10 @@ class LiquidGlassRenderScope extends InheritedWidget {
   const LiquidGlassRenderScope({
     required this.settings,
     required super.child,
-    this.useFake = false,
     super.key,
   });
 
   final LiquidGlassSettings settings;
-
-  final bool useFake;
 
   static LiquidGlassRenderScope of(BuildContext context) {
     final scope =
@@ -30,7 +27,6 @@ class LiquidGlassRenderScope extends InheritedWidget {
   @override
   bool updateShouldNotify(covariant InheritedWidget oldWidget) {
     return oldWidget is! LiquidGlassRenderScope ||
-        oldWidget.settings != settings ||
-        oldWidget.useFake != useFake;
+        oldWidget.settings != settings;
   }
 }

@@ -1,8 +1,14 @@
 /// Liquid Glass Effect for Flutter
 ///
 /// A high-performance glass/frosted effect renderer using custom shaders.
-/// Real glass mode requires Impeller; on Skia it falls back to fake glass
-/// (backdrop-filter-based) rendering, or when `LiquidGlassLayer(fake: true)`.
+///
+/// **Impeller Required:** Liquid glass rendering requires Impeller to be
+/// enabled. On non-Impeller devices (Skia), the effect automatically falls
+/// back to fake glass rendering using standard backdrop filters.
+///
+/// **Performance:** Impeller-based liquid glass provides better visual quality
+/// AND better performance than fake glass, because it uses custom shaders that
+/// run entirely on the GPU.
 ///
 /// ## Quick Start
 ///
@@ -24,7 +30,8 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 
 export 'src/glass_glow.dart' show GlassGlow, GlassGlowLayer;
 export 'src/liquid_glass.dart' show LiquidGlass;
-export 'src/liquid_glass_settings.dart' show LiquidGlassSettings;
+export 'src/liquid_glass_settings.dart'
+    show FakeGlassConfigs, LiquidGlassConfigs, LiquidGlassSettings;
 export 'src/liquid_shape.dart';
 export 'src/logging.dart' show LgrLogs;
 export 'src/rendering/liquid_glass_layer.dart' show LiquidGlassLayer;

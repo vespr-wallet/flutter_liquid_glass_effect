@@ -52,17 +52,18 @@ class LiquidGlassBottomBar extends StatefulWidget {
     required this.tabs,
     required this.selectedIndex,
     required this.onTabSelected,
+    required this.forceFakeGlass,
     this.extraButton,
     this.spacing = 8,
     this.horizontalPadding = 20,
     this.bottomPadding = 20,
     this.barHeight = 64,
-    this.glassSettings,
+    // this.glassSettings,
     this.showIndicator = true,
     this.indicatorColor,
-    this.fake = false,
   });
 
+  final bool forceFakeGlass;
   final List<LiquidGlassBottomBarTab> tabs;
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
@@ -71,10 +72,9 @@ class LiquidGlassBottomBar extends StatefulWidget {
   final double horizontalPadding;
   final double bottomPadding;
   final double barHeight;
-  final LiquidGlassSettings? glassSettings;
+  // final LiquidGlassSettings? glassSettings;
   final bool showIndicator;
   final Color? indicatorColor;
-  final bool fake;
 
   @override
   State<LiquidGlassBottomBar> createState() => _LiquidGlassBottomBarState();
@@ -87,23 +87,27 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
     final isDark = brightness == Brightness.dark;
 
     final glassSettings =
-        widget.glassSettings ??
+        // widget.glassSettings ??
         LiquidGlassSettings(
-          refractiveIndex: 1.21,
           thickness: 30,
           frostIntensity: 8,
-          saturation: 1.5,
           lightIntensity: isDark ? .7 : 1,
           ambientStrength: isDark ? .2 : .5,
           lightAngle: math.pi / 4,
           glassColor: CupertinoTheme.of(
             context,
           ).barBackgroundColor.withValues(alpha: 0.1),
+          saturation: 1.5,
+          liquidGlassConfigs: LiquidGlassConfigs(
+            refractiveIndex: 1.21,
+          ),
+          fakeGlassConfigs: FakeGlassConfigs(
+            forceEnabled: widget.forceFakeGlass,
+          ),
         );
 
     return LiquidGlassLayer(
       settings: glassSettings,
-      fake: widget.fake,
       child: Padding(
         padding: EdgeInsets.only(
           right: widget.horizontalPadding,
@@ -116,12 +120,12 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
           children: [
             Expanded(
               child: _TabIndicator(
-                fake: widget.fake,
                 visible: widget.showIndicator,
                 tabIndex: widget.selectedIndex,
                 tabCount: widget.tabs.length,
                 indicatorColor: widget.indicatorColor,
                 onTabChanged: widget.onTabSelected,
+                forceFakeGlass: widget.forceFakeGlass,
                 child: LiquidGlass(
                   clipBehavior: Clip.none,
                   shape: const LiquidRoundedSuperellipse(borderRadius: 32),
@@ -146,7 +150,7 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
               ),
             ),
             if (widget.extraButton != null)
-              _ExtraButton(config: widget.extraButton!, fake: widget.fake),
+              _ExtraButton(config: widget.extraButton!),
           ],
         ),
       ),
@@ -285,10 +289,9 @@ class _BottomBarTab extends StatelessWidget {
 }
 
 class _ExtraButton extends StatefulWidget {
-  const _ExtraButton({required this.config, this.fake = false});
+  const _ExtraButton({required this.config});
 
   final LiquidGlassBottomBarExtraButton config;
-  final bool fake;
 
   @override
   State<_ExtraButton> createState() => _ExtraButtonState();
@@ -332,9 +335,9 @@ class _TabIndicator extends StatefulWidget {
     required this.tabIndex,
     required this.tabCount,
     required this.onTabChanged,
+    required this.forceFakeGlass,
     this.visible = true,
     this.indicatorColor,
-    this.fake = false,
   });
 
   final int tabIndex;
@@ -343,7 +346,7 @@ class _TabIndicator extends StatefulWidget {
   final Widget child;
   final Color? indicatorColor;
   final ValueChanged<int> onTabChanged;
-  final bool fake;
+  final bool forceFakeGlass;
 
   @override
   State<_TabIndicator> createState() => _TabIndicatorState();
@@ -567,15 +570,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                       alignment: alignment,
                       thickness: thickness,
                       child: LiquidGlass.withOwnLayer(
-                        fake: true,
                         settings: LiquidGlassSettings(
-                          // thickness is animated
-                          visibility: thickness,
-                          // disable refraction and saturation
-                          // because it flickers during animation (Impeller BUG?)
-                          // see: docs/flutter_backdrop_filter_layer_flicker.md
-                          fakeGlassRefraction: 0,
-                          saturation: 1.0,
                           glassColor: Color.from(
                             alpha: .1,
                             red: 1,
@@ -584,8 +579,19 @@ class _TabIndicatorState extends State<_TabIndicator>
                           ),
                           thickness: 4,
                           lightIntensity: 2,
-                          chromaticAberration: .5,
                           frosted: false,
+                          saturation: 1.5,
+                          // disable refraction
+                          // because it flickers during animation (Impeller BUG?)
+                          // see: docs/flutter_backdrop_filter_layer_flicker.md
+                          liquidGlassConfigs: LiquidGlassConfigs(
+                            chromaticAberration: .5,
+                            refractiveIndex: 1.6,
+                          ),
+                          fakeGlassConfigs: FakeGlassConfigs(
+                            forceEnabled: widget.forceFakeGlass,
+                            refraction: 0,
+                          ),
                         ),
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,

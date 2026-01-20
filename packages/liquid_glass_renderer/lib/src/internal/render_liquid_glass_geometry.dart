@@ -291,12 +291,12 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     // geometryShader is guaranteed non-null when this method is called
     // (checked in maybeRebuildGeometry)
-    final shader = _geometryShader!;
-    shader.setFloatUniforms((value) {
-      value
-        ..setFloat(width.toDouble())
-        ..setFloat(height.toDouble());
-    });
+    final shader = _geometryShader!
+      ..setFloatUniforms((value) {
+        value
+          ..setFloat(width.toDouble())
+          ..setFloat(height.toDouble());
+      });
 
     updateGeometryShaderShapes(shapes);
 
@@ -485,8 +485,9 @@ extension on LiquidGlassSettings {
   bool requiresGeometryRebuild(LiquidGlassSettings? other) {
     if (other == null) return false;
 
-    return effectiveThickness != other.effectiveThickness ||
-        refractiveIndex != other.refractiveIndex;
+    return thickness != other.thickness ||
+        liquidGlassConfigs.refractiveIndex !=
+            other.liquidGlassConfigs.refractiveIndex;
   }
 }
 

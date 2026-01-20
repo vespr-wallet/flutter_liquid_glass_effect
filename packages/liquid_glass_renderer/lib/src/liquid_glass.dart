@@ -8,7 +8,6 @@ import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/shaders.dart';
 import 'package:meta/meta.dart';
@@ -22,6 +21,10 @@ import 'package:meta/meta.dart';
 /// [LiquidGlass.withOwnLayer] constructor, which will create its own
 /// [LiquidGlassLayer] internally.
 /// Be mindful that creating many individual layers can be expensive.
+///
+/// **Impeller Required:** Liquid glass rendering requires Impeller to be
+/// enabled. On non-Impeller devices (Skia), the effect automatically falls
+/// back to fake glass rendering using standard backdrop filters.
 ///
 /// See the [LiquidGlassLayer] documentation for more information.
 class LiquidGlass extends StatelessWidget {
@@ -37,7 +40,7 @@ class LiquidGlass extends StatelessWidget {
     this.clipBehavior = Clip.hardEdge,
     this.debugLabel,
     super.key,
-  }) : ownLayerConfig = null;
+  }) : ownLayerSettings = null;
 
   /// Creates a new [LiquidGlass] that creates its own [LiquidGlassLayer].
   ///
@@ -46,17 +49,19 @@ class LiquidGlass extends StatelessWidget {
   ///
   /// You should prefer rendering multiple [LiquidGlass] shapes that share the
   /// same settings inside a single [LiquidGlassLayer] for better performance.
+  ///
+  /// The rendering mode (liquid glass vs fake glass) is automatically
+  /// determined based on platform support.
   const LiquidGlass.withOwnLayer({
     required this.child,
     required this.shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
-    bool fake = false,
     this.frosted,
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     this.debugLabel,
-  }) : ownLayerConfig = (settings, fake);
+  }) : ownLayerSettings = settings;
 
   /// The child of this widget.
   ///
@@ -93,30 +98,28 @@ class LiquidGlass extends StatelessWidget {
   final bool? frosted;
 
   /// The settings for this glass if it is supposed to create its own layer.
-  final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
+  final LiquidGlassSettings? ownLayerSettings;
 
-  /// Debug label for logging. When set, enables debug output for fake glass mode.
+  /// Debug label for logging. When set, enables debug output
+  /// for fake glass mode.
   final String? debugLabel;
 
   @override
   Widget build(BuildContext context) {
-    // If we have our own layer config, we create our own layer.
-    if (ownLayerConfig case (final settings, final fake)) {
+    // If we have our own layer settings, we create our own layer.
+    if (ownLayerSettings case final settings?) {
       return LiquidGlassLayer(
         settings: settings,
-        fake: fake,
         child: Builder(
-          builder: (context) => _buildGlassContent(context, useFake: fake),
+          builder: _buildGlassContent,
         ),
       );
     }
 
-    final useFake = LiquidGlassRenderScope.of(context).useFake;
-
-    return _buildGlassContent(context, useFake: useFake);
+    return _buildGlassContent(context);
   }
 
-  Widget _buildGlassContent(BuildContext context, {required bool useFake}) {
+  Widget _buildGlassContent(BuildContext context) {
     final settings = LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.isFrosted;
@@ -124,16 +127,13 @@ class LiquidGlass extends StatelessWidget {
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
       clipBehavior: clipBehavior,
-      child: Opacity(
-        opacity: settings.visibility.clamp(0, 1),
-        child: GlassGlowLayer(
-          child: child,
-        ),
+      child: GlassGlowLayer(
+        child: child,
       ),
     );
 
-    // When useFake or shader not supported, register geometry without shader
-    if (useFake || !ImageFilter.isShaderFilterSupported) {
+    // Use fake glass when forced via settings or when Impeller is not available
+    if (settings.shouldUseFakeGlass) {
       return _RawLiquidGlass(
         shader: null,
         renderLink: InheritedGeometryRenderLink.of(context)!,
@@ -306,9 +306,9 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     if (shader == null) return;
     shader.setFloatUniforms(initialIndex: 2, (value) {
       value.setFloats([
-        settings.refractiveIndex,
-        settings.effectiveChromaticAberration,
-        settings.effectiveThickness,
+        settings.liquidGlassConfigs.refractiveIndex,
+        settings.liquidGlassConfigs.chromaticAberration,
+        settings.thickness,
         0.0, // blend always 0 for single shapes
       ]);
     });

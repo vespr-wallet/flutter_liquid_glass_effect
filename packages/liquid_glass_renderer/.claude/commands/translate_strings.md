@@ -1,0 +1,1 @@
+Read ".ai/commands/translate.md" at the project root and perform the task

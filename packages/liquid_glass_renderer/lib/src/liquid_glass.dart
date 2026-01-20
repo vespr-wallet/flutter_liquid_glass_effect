@@ -89,7 +89,7 @@ class LiquidGlass extends StatelessWidget {
   /// When true, the background behind this shape will be blurred.
   /// When false, only refraction is applied (clear glass).
   ///
-  /// If null, uses the default from [LiquidGlassSettings.frosted].
+  /// If null, uses the default from [LiquidGlassSettings.isFrosted].
   final bool? frosted;
 
   /// The settings for this glass if it is supposed to create its own layer.
@@ -119,7 +119,7 @@ class LiquidGlass extends StatelessWidget {
   Widget _buildGlassContent(BuildContext context, {required bool useFake}) {
     final settings = LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
-    final resolvedFrosted = frosted ?? settings.frosted;
+    final resolvedFrosted = frosted ?? settings.isFrosted;
 
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),

@@ -585,7 +585,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                           thickness: 4,
                           lightIntensity: 2,
                           chromaticAberration: .5,
-                          frostByDefault: false,
+                          frosted: false,
                         ),
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,

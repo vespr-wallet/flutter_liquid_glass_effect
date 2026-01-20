@@ -11,11 +11,11 @@ class LiquidGlassSettings with EquatableMixin {
   /// Creates a new [LiquidGlassSettings] with the given settings.
   ///
   /// The [frostIntensity] value should typically be greater than 0.
-  /// Use [frostByDefault] to control whether blur is applied, rather than
+  /// Use [frosted] to control whether blur is applied, rather than
   /// setting frostIntensity to 0 (though 0 is allowed for animations).
   ///
-  /// Note: If [frostIntensity] is <= 0, [frosted] will return false regardless
-  /// of [frostByDefault].
+  /// Note: If [frostIntensity] is <= 0, [isFrosted] will return false regardless
+  /// of [frosted].
   const LiquidGlassSettings({
     this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
@@ -27,7 +27,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.ambientStrength = 0,
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
-    this.frostByDefault = true,
+    this.frosted = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 1.5,
   });
@@ -44,7 +44,7 @@ class LiquidGlassSettings with EquatableMixin {
     double lightIntensity = 50,
     double lightAngle = pi / 4,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
-    bool frostByDefault = true,
+    bool frosted = true,
     double fakeGlassRefraction = 5.0,
     double fakeGlassRefractionFrostedMultiplier = 2.0,
   }) : this(
@@ -58,7 +58,7 @@ class LiquidGlassSettings with EquatableMixin {
           ambientStrength: 0.1,
           saturation: 1.5,
           glassColor: glassColor,
-          frostByDefault: frostByDefault,
+          frosted: frosted,
           fakeGlassRefraction: fakeGlassRefraction,
           fakeGlassRefractionFrostedMultiplier:
               fakeGlassRefractionFrostedMultiplier,
@@ -75,7 +75,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.frostIntensity = 4,
     this.refractiveIndex = 1.15,
     this.saturation = 1.2,
-    this.frostByDefault = true,
+    this.frosted = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0,
@@ -94,7 +94,7 @@ class LiquidGlassSettings with EquatableMixin {
     this.frostIntensity = 3,
     this.refractiveIndex = 1.1,
     this.saturation = 1.3,
-    this.frostByDefault = true,
+    this.frosted = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0.005,
@@ -135,7 +135,7 @@ class LiquidGlassSettings with EquatableMixin {
   /// The blur intensity of the frosted glass effect.
   ///
   /// Higher values create a more frosted appearance.
-  /// This value should be > 0. Use [frostByDefault] to disable blur instead.
+  /// This value should be > 0. Use [frosted] to disable blur instead.
   ///
   /// Defaults to 5.
   final double frostIntensity;
@@ -197,14 +197,16 @@ class LiquidGlassSettings with EquatableMixin {
   /// When true, glass shapes will blur the background behind them (frosted).
   /// When false, glass shapes will only apply refraction without blur (clear).
   ///
-  /// Individual [LiquidGlass] widgets can override this per-shape.
+  /// Individual [LiquidGlass] widgets can override this setting per-shape
+  /// via their own `frosted` parameter.
+  ///
   /// Defaults to true.
-  final bool frostByDefault;
+  final bool frosted;
 
   /// The effective frosted state, taking [frostIntensity] into account.
   ///
-  /// Returns false if [frostIntensity] is <= 0, regardless of [frostByDefault].
-  bool get frosted => frostByDefault && frostIntensity > 0;
+  /// Returns false if [frostIntensity] is <= 0, regardless of [frosted].
+  bool get isFrosted => frosted && frostIntensity > 0;
 
   /// The fake refraction edge offset in pixels used by fake glass mode.
   ///
@@ -243,7 +245,7 @@ class LiquidGlassSettings with EquatableMixin {
     double? ambientStrength,
     double? refractiveIndex,
     double? saturation,
-    bool? frostByDefault,
+    bool? frosted,
     double? fakeGlassRefraction,
     double? fakeGlassRefractionFrostedMultiplier,
   }) =>
@@ -258,7 +260,7 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength: ambientStrength ?? this.ambientStrength,
         refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
-        frostByDefault: frostByDefault ?? this.frostByDefault,
+        frosted: frosted ?? this.frosted,
         fakeGlassRefraction: fakeGlassRefraction ?? this.fakeGlassRefraction,
         fakeGlassRefractionFrostedMultiplier:
             fakeGlassRefractionFrostedMultiplier ??
@@ -270,7 +272,7 @@ class LiquidGlassSettings with EquatableMixin {
   /// The [t] parameter represents the interpolation progress from 0.0 to 1.0,
   /// where 0.0 returns [a] and 1.0 returns [b].
   ///
-  /// Boolean properties ([frostByDefault]) switch at t >= 0.5.
+  /// Boolean properties ([frosted]) switch at t >= 0.5.
   ///
   /// Example:
   /// ```dart
@@ -293,10 +295,10 @@ class LiquidGlassSettings with EquatableMixin {
         <= 0 => a.frostIntensity,
         >= 1 => b.frostIntensity,
         _ => () {
-            if (a.frostByDefault && !b.frostByDefault) {
+            if (a.frosted && !b.frosted) {
               // transition from frosted to non-frosted
               return ui.lerpDouble(a.frostIntensity, 0.0, t)!;
-            } else if (!a.frostByDefault && b.frostByDefault) {
+            } else if (!a.frosted && b.frosted) {
               // transition from non-frosted to frosted
               return ui.lerpDouble(0.0, b.frostIntensity, t)!;
             }
@@ -313,7 +315,7 @@ class LiquidGlassSettings with EquatableMixin {
       ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
       refractiveIndex: ui.lerpDouble(a.refractiveIndex, b.refractiveIndex, t)!,
       saturation: ui.lerpDouble(a.saturation, b.saturation, t)!,
-      frostByDefault: t < 0.5 ? a.frostByDefault : b.frostByDefault,
+      frosted: t < 0.5 ? a.frosted : b.frosted,
       fakeGlassRefraction:
           ui.lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t)!,
       fakeGlassRefractionFrostedMultiplier: ui.lerpDouble(
@@ -336,7 +338,7 @@ class LiquidGlassSettings with EquatableMixin {
         ambientStrength,
         refractiveIndex,
         saturation,
-        frostByDefault,
+        frosted,
         fakeGlassRefraction,
         fakeGlassRefractionFrostedMultiplier,
       ];

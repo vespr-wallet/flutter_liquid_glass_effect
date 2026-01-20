@@ -842,7 +842,7 @@ class _ManyIndividualLayersExampleState
                                   visibility: 1,
                                   thickness: 12,
                                   frostIntensity: 5,
-                                  frostByDefault: widget.frosted,
+                                  frosted: widget.frosted,
                                   lightIntensity: 0.4,
                                   glassColor: const Color.fromARGB(
                                     15,
@@ -1018,7 +1018,7 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                     visibility: 1,
                     thickness: 12,
                     frostIntensity: 5,
-                    frostByDefault: widget.frosted,
+                    frosted: widget.frosted,
                     lightIntensity: 0.4,
                     glassColor: const Color.fromARGB(15, 255, 255, 255),
                   ),
@@ -1131,7 +1131,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
   static const _flatSettings = LiquidGlassSettings(
     visibility: 1, // Keep visible!
     thickness: 0, // No glass depth
-    frostByDefault: false, // No blur
+    frosted: false, // No blur
     lightIntensity: 0, // No specular
     saturation: 1.0, // Normal saturation
     fakeGlassRefraction: 0, // No refraction for fake glass mode
@@ -1200,7 +1200,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: widget.frosted
                   ? settings
-                  : settings.copyWith(frostByDefault: false),
+                  : settings.copyWith(frosted: false),
               fake: widget.fake,
               frosted: widget.frosted,
               child: GlassGlow(child: child!),
@@ -1304,7 +1304,7 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
               shape: const LiquidRoundedSuperellipse(borderRadius: 24),
               settings: widget.frosted
                   ? settings
-                  : settings.copyWith(frostByDefault: false),
+                  : settings.copyWith(frosted: false),
               fake: widget.fake,
               frosted: widget.frosted,
               child: GlassGlow(child: child!),
@@ -1514,7 +1514,7 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
                   shape: shape,
                   settings: widget.frosted
                       ? settings
-                      : settings.copyWith(frostByDefault: false),
+                      : settings.copyWith(frosted: false),
                   fake: widget.fake,
                   frosted: widget.frosted,
                   child: GlassGlow(child: child!),

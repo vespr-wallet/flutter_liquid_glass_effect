@@ -72,7 +72,7 @@ class BasicApp extends HookWidget {
                 listenable: Listenable.merge([settingsNotifier, light]),
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
-                    glassColor: Colors.black38,
+                    glassColor: Colors.white24,
                     fakeGlassRefraction: 5.0,
                     fakeGlassRefractionFrostedMultiplier: 1.5,
                   );

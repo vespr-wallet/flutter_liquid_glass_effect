@@ -280,8 +280,8 @@ mixin FakeGlassEffectsMixin {
     final lightIntensity =
         fakeGlassSettings.effectiveLightIntensity.clamp(0.0, 1.0);
     final gradientAlpha =
-        (lightIntensity * kFakeGlassDepthGradientAlphaMultiplier)
-            .clamp(kFakeGlassDepthGradientAlphaMin, kFakeGlassDepthGradientAlphaMax);
+        (lightIntensity * kFakeGlassDepthGradientAlphaMultiplier).clamp(
+            kFakeGlassDepthGradientAlphaMin, kFakeGlassDepthGradientAlphaMax);
 
     if (gradientAlpha <= 0) return;
 
@@ -377,6 +377,7 @@ mixin FakeGlassEffectsMixin {
     final scaleY =
         size.height > 0 ? 1.0 + (2 * refractionPixels / size.height) : 1.0;
 
+    // Scale around center point
     final matrix = Matrix4.identity()
       ..translateByDouble(center.dx, center.dy, 0, 1)
       ..scaleByDouble(scaleX, scaleY, 1, 1)

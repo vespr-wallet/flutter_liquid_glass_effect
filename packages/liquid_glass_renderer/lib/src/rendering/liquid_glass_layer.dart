@@ -245,26 +245,31 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// Builds a combined filter for fake glass effects.
   /// Returns null if no filter effects are needed.
+  ///
+  /// Uses the layer's size for refraction calculations to ensure consistent
+  /// positioning regardless of which shapes are enabled.
   ImageFilter? _buildFakeGlassFilter({
     required bool frosted,
-    required Rect bounds,
   }) {
     final baseRefraction = settings.fakeGlassRefraction;
     final refraction = frosted
         ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
         : baseRefraction;
 
-    // Use bounding box center for the refraction effect
-    final center = bounds.center;
+    // Use layer center for the refraction effect to ensure consistent
+    // positioning regardless of which shapes are enabled
+    final layerBounds = Offset.zero & size;
+    final center = layerBounds.center;
 
     final refractionFilter = refraction > 0
-        ? createRefractionFilter(center, refraction, bounds.size)
+        ? createRefractionFilter(center, refraction, layerBounds.size)
         : null;
 
     // Boost saturation to match real glass shader appearance
-    final boostedSaturation =
-        (1.0 + (settings.effectiveSaturation - 1.0) * kFakeGlassSaturationMultiplier)
-            .clamp(0.0, double.infinity);
+    final boostedSaturation = (1.0 +
+            (settings.effectiveSaturation - 1.0) *
+                kFakeGlassSaturationMultiplier)
+        .clamp(0.0, double.infinity);
     final saturationFilter = boostedSaturation != 1.0
         ? ColorFilter.matrix(_getSaturationMatrix(boostedSaturation))
         : null;
@@ -463,6 +468,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ) {
     if (!attached) return;
 
+    // Use layer bounds for clip rect to ensure consistent backdrop sampling
+    // regardless of which shapes are enabled
+    final layerBounds = Offset.zero & size;
+
     // Separate shapes into frosted and non-frosted
     final frostedShapes =
         <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
@@ -483,7 +492,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (frostedShapes.isNotEmpty) {
       final combinedFilter = _buildFakeGlassFilter(
         frosted: true,
-        bounds: boundingBox,
       );
 
       final frostedClipPath = Path();
@@ -496,15 +504,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       }
 
       if (combinedFilter != null) {
-        final blurLayer =
-            (_fakeGlassBlurLayerHandle.layer ??= BackdropFilterLayer())
-              ..backdropKey = backdropKey
-              ..filter = combinedFilter;
+        final blurLayer = (_fakeGlassBlurLayerHandle.layer ??=
+            BackdropFilterLayer())
+          ..backdropKey = backdropKey
+          ..filter = combinedFilter;
 
         _fakeGlassFrostedClipPathLayerHandle.layer = context.pushClipPath(
           needsCompositing,
           offset,
-          boundingBox,
+          layerBounds,
           frostedClipPath,
           (context, offset) {
             context.pushLayer(
@@ -546,7 +554,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _fakeGlassFrostedClipPathLayerHandle.layer = context.pushClipPath(
           needsCompositing,
           offset,
-          boundingBox,
+          layerBounds,
           frostedClipPath,
           (context, offset) {
             paintShapeContents(
@@ -584,7 +592,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (nonFrostedShapes.isNotEmpty) {
       final nonFrostedFilter = _buildFakeGlassFilter(
         frosted: false,
-        bounds: boundingBox,
       );
 
       final nonFrostedClipPath = Path();
@@ -597,16 +604,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       }
 
       if (nonFrostedFilter != null) {
-        final filterLayer =
-            (_fakeGlassNonFrostedFilterLayerHandle.layer ??=
-                BackdropFilterLayer())
-              ..backdropKey = backdropKey
-              ..filter = nonFrostedFilter;
+        final filterLayer = (_fakeGlassNonFrostedFilterLayerHandle.layer ??=
+            BackdropFilterLayer())
+          ..backdropKey = backdropKey
+          ..filter = nonFrostedFilter;
 
         _fakeGlassNonFrostedClipPathLayerHandle.layer = context.pushClipPath(
           needsCompositing,
           offset,
-          boundingBox,
+          layerBounds,
           nonFrostedClipPath,
           (context, offset) {
             context.pushLayer(
@@ -621,8 +627,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 );
 
                 // Paint fake glass visual effects for each non-frosted shape
-                for (final (_, geometry, transform)
-                    in nonFrostedShapes) {
+                for (final (_, geometry, transform) in nonFrostedShapes) {
                   final transformedPath =
                       geometry.path.transform(transform.storage);
                   final transformedBounds = MatrixUtils.transformRect(
@@ -649,7 +654,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _fakeGlassNonFrostedClipPathLayerHandle.layer = context.pushClipPath(
           needsCompositing,
           offset,
-          boundingBox,
+          layerBounds,
           nonFrostedClipPath,
           (context, offset) {
             paintShapeContents(

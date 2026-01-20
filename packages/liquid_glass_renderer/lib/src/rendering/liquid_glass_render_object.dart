@@ -57,7 +57,18 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   LiquidGlassSettings? _settings;
-  LiquidGlassSettings get settings => _settings!;
+
+  /// The settings for the liquid glass effect.
+  ///
+  /// This is always non-null after construction as it's a required parameter.
+  LiquidGlassSettings get settings {
+    assert(
+      _settings != null,
+      'Settings accessed before initialization. '
+      'Ensure the render object is properly constructed.',
+    );
+    return _settings!;
+  }
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
@@ -99,6 +110,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @override
   @mustCallSuper
   void detach() {
+    // Clear cached geometry to release GPU resources when detached from tree.
+    // The geometry will be rebuilt when re-attached if needed.
+    _clearGeometryImage();
     super.detach();
   }
 
@@ -341,8 +355,16 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
     final size = boundsInMatteSpace.size * devicePixelRatio;
 
-    final buffer = StringBuffer('$hashCode Built geometry image with '
-        '${geometries.length} shapes at size ${size.width}x${size.height}:\n');
+    // Only allocate StringBuffer if logging is active to avoid
+    // unnecessary allocations on every frame
+    final isLogging = LgrLogs.isLogActive(logger);
+    StringBuffer? buffer;
+    if (isLogging) {
+      buffer = StringBuffer(
+        '$hashCode Built geometry image with ${geometries.length} shapes '
+        'at size ${size.width}x${size.height}:\n',
+      );
+    }
 
     final recorder = ui.PictureRecorder();
 
@@ -366,19 +388,13 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
       switch (geometry) {
         case UnrenderedGeometryCache(matte: final picture):
-          buffer.writeln(
-            '\t- Unrendered @ ${geometry.bounds}',
-          );
+          buffer?.writeln('\t- Unrendered @ ${geometry.bounds}');
           canvas.drawPicture(picture);
         case RenderedGeometryCache(matte: final image):
-          buffer.writeln(
-            '\t- Rendered @ ${geometry.bounds}',
-          );
+          buffer?.writeln('\t- Rendered @ ${geometry.bounds}');
           canvas.drawImage(image, Offset.zero, Paint());
         case PathOnlyGeometryCache():
-          buffer.writeln(
-            '\t- PathOnly @ ${geometry.bounds}',
-          );
+          buffer?.writeln('\t- PathOnly @ ${geometry.bounds}');
           // PathOnlyGeometryCache has no matte to draw
       }
 
@@ -386,14 +402,19 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
 
     final picture = recorder.endRecording();
-    final image = picture.toImageSync(
-      size.width.ceil(),
-      size.height.ceil(),
-    );
+    try {
+      final image = picture.toImageSync(
+        size.width.ceil(),
+        size.height.ceil(),
+      );
 
-    logger.fine(buffer.toString());
-    picture.dispose();
-    return (image, boundsInMatteSpace);
+      if (buffer != null) {
+        logger.fine(buffer.toString());
+      }
+      return (image, boundsInMatteSpace);
+    } finally {
+      picture.dispose();
+    }
   }
 }
 
@@ -415,6 +436,10 @@ class GeometryRenderLink {
   void registerGeometry(
     RenderLiquidGlassGeometry renderObject,
   ) {
+    // Prevent duplicate registrations
+    if (_shapeGeometries.contains(renderObject)) {
+      return;
+    }
     _dirty = true;
     _shapeGeometries.add(renderObject);
   }

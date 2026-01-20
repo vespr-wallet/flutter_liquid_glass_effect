@@ -95,6 +95,24 @@ class MultiShaderBuilder extends StatefulWidget {
       assetKeys.map(precacheShader),
     );
   }
+
+  /// Clears the shader cache.
+  ///
+  /// This is primarily useful for testing or for releasing memory when shaders
+  /// are no longer needed. Note that clearing the cache does NOT dispose of
+  /// the underlying [ui.FragmentProgram]s - they are managed by Flutter's
+  /// asset system.
+  ///
+  /// After calling this method, any [MultiShaderBuilder]s will need to reload
+  /// their shaders asynchronously.
+  static void clearCache() {
+    _MultiShaderBuilderState._shaderCache.clear();
+  }
+
+  /// Returns true if the shader with the given [assetKey] is cached.
+  static bool isCached(String assetKey) {
+    return _MultiShaderBuilderState._shaderCache.containsKey(assetKey);
+  }
 }
 
 class _MultiShaderBuilderState extends State<MultiShaderBuilder> {

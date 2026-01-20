@@ -203,9 +203,8 @@ lib/assets/shaders/
 ├── liquid_glass_geometry_blended.frag   # Generates displacement texture
 ├── liquid_glass_final_render.frag       # Final composition shader
 ├── sdf.glsl                             # Signed distance functions
-├── shared.glsl                          # Common utilities
 ├── displacement_encoding.glsl           # Displacement encode/decode
-└── render.glsl                          # Rendering utilities
+└── render.glsl                          # Common rendering utilities
 ```
 
 ## Performance Considerations

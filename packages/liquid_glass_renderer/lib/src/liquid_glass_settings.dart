@@ -16,7 +16,8 @@ class LiquidGlassConfigs with EquatableMixin {
   const LiquidGlassConfigs({
     this.chromaticAberration = 0.01,
     this.refractiveIndex = 1.2,
-  });
+  })  : assert(chromaticAberration >= 0, 'chromaticAberration must be >= 0'),
+        assert(refractiveIndex >= 1.0, 'refractiveIndex must be >= 1.0');
 
   /// The chromatic aberration of the glass effect.
   ///
@@ -183,7 +184,9 @@ class LiquidGlassSettings with EquatableMixin {
     this.fakeGlassConfigs = const FakeGlassConfigs(),
     this.animationDuration = const Duration(milliseconds: 300),
     this.animationCurve = Curves.easeInOut,
-  });
+  })  : assert(thickness >= 0, 'thickness must be >= 0'),
+        assert(frostIntensity >= 0, 'frostIntensity must be >= 0'),
+        assert(saturation > 0, 'saturation must be > 0');
 
   /// Creates a new [LiquidGlassSettings] with the given settings where each
   /// setting works like it does in Figma, where it is a percentage from

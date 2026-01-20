@@ -6,8 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-// ignore: implementation_imports
-import 'package:liquid_glass_renderer/src/stretch.dart' show LiquidStretchScale;
+import 'package:liquid_glass_renderer/src/stretch.dart';
 import 'package:meta/meta.dart';
 
 /// Debug toggle for FakeGlass depth gradient effect.
@@ -53,6 +52,11 @@ const _kSpecularOverlayFrostedMultiplier = 1.5;
 /// Alpha multiplier for blurred overlay (0.0 - 1.0)
 const _kSpecularOverlayAlpha = 1.0;
 
+// -- Saturation --
+/// Multiplier to boost saturation effect to match real glass shader.
+/// The shader-based saturation appears more pronounced, so we compensate.
+const _kSaturationMultiplier = 1.5;
+
 // -- Depth Gradient --
 /// Multiplier for gradient alpha based on light intensity
 const _kDepthGradientAlphaMultiplier = .1;
@@ -74,6 +78,7 @@ class FakeGlass extends StatelessWidget {
     required this.child,
     LiquidGlassSettings this.settings = const LiquidGlassSettings(),
     this.frosted,
+    this.debugLabel,
     super.key,
   });
 
@@ -83,6 +88,7 @@ class FakeGlass extends StatelessWidget {
     required this.shape,
     required this.child,
     this.frosted,
+    this.debugLabel,
     super.key,
   }) : settings = null;
 
@@ -106,18 +112,25 @@ class FakeGlass extends StatelessWidget {
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
+  /// Debug label for logging. When set, enables debug output for this instance.
+  final String? debugLabel;
+
   @override
   Widget build(BuildContext context) {
     final settings = this.settings ?? LiquidGlassSettings.of(context);
     // Resolve frosted: use widget value if provided, otherwise use settings
     final resolvedFrosted = frosted ?? settings.frosted;
 
-    // Check if LiquidStretch is currently applying any transform
+    // Check if we're inside an active transform (e.g., LiquidStretch drag)
     final isTransforming = LiquidStretchScale.isCurrentlyTransforming(context);
 
     // If we are in a layer, we accept that layer's backdrop key.
-    final backdropKey =
-        this.settings == null ? BackdropGroup.of(context)?.backdropKey : null;
+    // BUT: if transforms are active, don't use shared backdrop — it causes
+    // coordinate space issues. Use own backdrop instead (always works with local coords).
+    final backdropKey = this.settings == null && !isTransforming
+        ? BackdropGroup.of(context)?.backdropKey
+        : null;
+
     return ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
       child: RawFakeGlass(
@@ -125,7 +138,7 @@ class FakeGlass extends StatelessWidget {
         settings: settings,
         backdropKey: backdropKey,
         frosted: resolvedFrosted,
-        isTransforming: isTransforming,
+        debugLabel: debugLabel,
         child: Opacity(
           opacity: settings.visibility.clamp(0, 1),
           child: GlassGlowLayer(
@@ -143,9 +156,9 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.shape,
     required super.child,
     required this.frosted,
-    required this.isTransforming,
     this.backdropKey,
     this.settings = const LiquidGlassSettings(),
+    this.debugLabel,
     super.key,
   });
 
@@ -157,7 +170,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final bool frosted;
 
-  final bool isTransforming;
+  final String? debugLabel;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -166,7 +179,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       settings: settings,
       backdropKey: backdropKey,
       frosted: frosted,
-      isTransforming: isTransforming,
+      debugLabel: debugLabel,
     );
   }
 
@@ -179,7 +192,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
         ..settings = settings
         ..backdropKey = backdropKey
         ..frosted = frosted
-        ..isTransforming = isTransforming;
+        ..debugLabel = debugLabel;
     }
   }
 }
@@ -190,12 +203,13 @@ class _RenderFakeGlass extends RenderProxyBox {
     required LiquidGlassSettings settings,
     required BackdropKey? backdropKey,
     required bool frosted,
-    required bool isTransforming,
+    required String? debugLabel,
   })  : _shape = shape,
         _settings = settings,
         _backdropKey = backdropKey,
         _frosted = frosted,
-        _isTransforming = isTransforming;
+        _debugLabel = debugLabel,
+        _usesSharedBackdrop = backdropKey != null;
 
   LiquidShape _shape;
   LiquidShape get shape => _shape;
@@ -238,7 +252,18 @@ class _RenderFakeGlass extends RenderProxyBox {
   set backdropKey(BackdropKey? value) {
     if (_backdropKey == value) return;
     _backdropKey = value;
+    _usesSharedBackdrop = value != null;
     markNeedsPaint();
+  }
+
+  /// Whether this FakeGlass uses a shared backdrop (via BackdropGroup).
+  /// When true, filter coordinates are relative to the BackdropGroup.
+  /// When false, filter coordinates are local to this widget.
+  bool _usesSharedBackdrop;
+
+  String? _debugLabel;
+  set debugLabel(String? value) {
+    _debugLabel = value;
   }
 
   bool _frosted;
@@ -246,14 +271,6 @@ class _RenderFakeGlass extends RenderProxyBox {
   set frosted(bool value) {
     if (_frosted == value) return;
     _frosted = value;
-    markNeedsPaint();
-  }
-
-  bool _isTransforming;
-  bool get isTransforming => _isTransforming;
-  set isTransforming(bool value) {
-    if (_isTransforming == value) return;
-    _isTransforming = value;
     markNeedsPaint();
   }
 
@@ -357,11 +374,13 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refraction = _frosted
         ? baseRefraction * settings.fakeGlassRefractionFrostedMultiplier
         : baseRefraction;
-    // Compensate for LiquidStretch transform.
-    // - When not transforming (static): bounds.center works
-    // - When transforming (scale or stretch active): localCenter works
-    final localCenter = Offset(size.width / 2, size.height / 2);
-    final center = _isTransforming ? localCenter : bounds.center;
+
+    // Coordinate space depends on backdrop mode:
+    // - Shared backdrop (static): coordinates in BackdropGroup space
+    // - Own backdrop (standalone or during transforms): local coordinates
+    final center = _usesSharedBackdrop
+        ? bounds.center
+        : Offset(size.width / 2, size.height / 2);
 
     // Skip saturation and refraction filters during animation (visibility < 1.0)
     // to avoid Impeller trembling.
@@ -372,9 +391,15 @@ class _RenderFakeGlass extends RenderProxyBox {
     final refractionFilter = !isAnimating && refraction > 0
         ? _createRefractionFilter(center, refraction, size)
         : null;
-    final saturationFilter = !isAnimating && settings.effectiveSaturation != 1.0
+
+    // Boost saturation to match real glass shader appearance
+    // Clamp to >= 0 to avoid negative values that would invert colors
+    final boostedSaturation =
+        (1.0 + (settings.effectiveSaturation - 1.0) * _kSaturationMultiplier)
+            .clamp(0.0, double.infinity);
+    final saturationFilter = !isAnimating && boostedSaturation != 1.0
         ? ui.ColorFilter.matrix(
-            _getSaturationMatrix(settings.effectiveSaturation),
+            _getSaturationMatrix(boostedSaturation),
           )
         : null;
 
@@ -420,6 +445,9 @@ class _RenderFakeGlass extends RenderProxyBox {
   /// The [refractionPixels] value specifies the target edge offset in pixels.
   /// Each axis is scaled independently to achieve consistent edge displacement
   /// regardless of widget aspect ratio.
+  ///
+  /// Uses magnification (scale > 1) to simulate glass lens effect where
+  /// the background appears larger/closer through the glass.
   ui.ImageFilter _createRefractionFilter(
     Offset center,
     double refractionPixels,
@@ -427,11 +455,11 @@ class _RenderFakeGlass extends RenderProxyBox {
   ) {
     // Calculate per-axis scale to achieve target pixel offset at edges.
     // For a widget of width W, to shift edges by P pixels:
-    // scaleX = 1 - P / (W / 2) = 1 - 2P / W
+    // scaleX = 1 + P / (W / 2) = 1 + 2P / W (magnification)
     final scaleX =
-        size.width > 0 ? 1.0 - (2 * refractionPixels / size.width) : 1.0;
+        size.width > 0 ? 1.0 + (2 * refractionPixels / size.width) : 1.0;
     final scaleY =
-        size.height > 0 ? 1.0 - (2 * refractionPixels / size.height) : 1.0;
+        size.height > 0 ? 1.0 + (2 * refractionPixels / size.height) : 1.0;
 
     final matrix = Matrix4.identity()
       ..translateByDouble(center.dx, center.dy, 0, 1)

@@ -197,18 +197,18 @@ class SettingsSheet extends HookWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Blur:'),
-                            Text(settings.blur.toStringAsFixed(2)),
+                            Text('Frost Intensity:'),
+                            Text(settings.frostIntensity.toStringAsFixed(2)),
                           ],
                         ),
                         CupertinoSlider(
-                          value: settings.blur,
+                          value: settings.frostIntensity,
                           onChanged: (value) {
                             settingsNotifier.value = settings.copyWith(
-                              blur: value,
+                              frostIntensity: value.clamp(0.1, 40),
                             );
                           },
-                          min: 0,
+                          min: 0.1,
                           max: 40,
                         ),
                         Row(

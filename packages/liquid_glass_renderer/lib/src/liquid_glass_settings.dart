@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
@@ -8,18 +9,25 @@ import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
 /// Represents the settings for a liquid glass effect.
 class LiquidGlassSettings with EquatableMixin {
   /// Creates a new [LiquidGlassSettings] with the given settings.
+  ///
+  /// The [frostIntensity] value should typically be greater than 0.
+  /// Use [frostByDefault] to control whether blur is applied, rather than
+  /// setting frostIntensity to 0 (though 0 is allowed for animations).
+  ///
+  /// Note: If [frostIntensity] is <= 0, [frosted] will return false regardless
+  /// of [frostByDefault].
   const LiquidGlassSettings({
     this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 20,
-    this.blur = 5,
+    this.frostIntensity = 5,
     this.chromaticAberration = .01,
-    this.lightAngle = 0.5 * pi,
+    this.lightAngle = pi / 4,
     this.lightIntensity = .5,
     this.ambientStrength = 0,
     this.refractiveIndex = 1.2,
     this.saturation = 1.5,
-    this.frosted = true,
+    this.frostByDefault = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 1.5,
   });
@@ -34,9 +42,9 @@ class LiquidGlassSettings with EquatableMixin {
     required double frost,
     double visibility = 1.0,
     double lightIntensity = 50,
-    double lightAngle = 0.5 * pi,
+    double lightAngle = pi / 4,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
-    bool frosted = true,
+    bool frostByDefault = true,
     double fakeGlassRefraction = 5.0,
     double fakeGlassRefractionFrostedMultiplier = 2.0,
   }) : this(
@@ -45,12 +53,12 @@ class LiquidGlassSettings with EquatableMixin {
           thickness: depth,
           chromaticAberration: 4 * (dispersion / 100),
           lightIntensity: lightIntensity / 100,
-          blur: frost,
+          frostIntensity: frost,
           lightAngle: lightAngle,
           ambientStrength: 0.1,
           saturation: 1.5,
           glassColor: glassColor,
-          frosted: frosted,
+          frostByDefault: frostByDefault,
           fakeGlassRefraction: fakeGlassRefraction,
           fakeGlassRefractionFrostedMultiplier:
               fakeGlassRefractionFrostedMultiplier,
@@ -64,10 +72,10 @@ class LiquidGlassSettings with EquatableMixin {
     this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 15,
-    this.blur = 4,
+    this.frostIntensity = 4,
     this.refractiveIndex = 1.15,
     this.saturation = 1.2,
-    this.frosted = true,
+    this.frostByDefault = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0,
@@ -83,14 +91,14 @@ class LiquidGlassSettings with EquatableMixin {
     this.visibility = 1.0,
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 12,
-    this.blur = 3,
+    this.frostIntensity = 3,
     this.refractiveIndex = 1.1,
     this.saturation = 1.3,
-    this.frosted = true,
+    this.frostByDefault = true,
     this.fakeGlassRefraction = 5.0,
     this.fakeGlassRefractionFrostedMultiplier = 2.0,
   })  : chromaticAberration = 0.005,
-        lightAngle = 0.5 * pi,
+        lightAngle = pi / 4,
         lightIntensity = 0.3,
         ambientStrength = 0;
 
@@ -124,15 +132,18 @@ class LiquidGlassSettings with EquatableMixin {
   /// The effective thickness taking visibility into account.
   double get effectiveThickness => thickness * visibility;
 
-  /// The blur of the glass effect.
+  /// The blur intensity of the frosted glass effect.
   ///
   /// Higher values create a more frosted appearance.
+  /// This value should be > 0. Use [frostByDefault] to disable blur instead.
   ///
-  /// Defaults to 0.
-  final double blur;
+  /// Defaults to 5.
+  final double frostIntensity;
 
   /// The effective blur taking visibility into account.
-  double get effectiveBlur => blur * visibility;
+  /// Returns 0 if [frostIntensity] is <= 0.
+  double get effectiveBlur =>
+      frostIntensity > 0 ? frostIntensity * visibility : 0;
 
   /// The chromatic aberration of the glass effect (WIP).
   ///
@@ -188,7 +199,12 @@ class LiquidGlassSettings with EquatableMixin {
   ///
   /// Individual [LiquidGlass] widgets can override this per-shape.
   /// Defaults to true.
-  final bool frosted;
+  final bool frostByDefault;
+
+  /// The effective frosted state, taking [frostIntensity] into account.
+  ///
+  /// Returns false if [frostIntensity] is <= 0, regardless of [frostByDefault].
+  bool get frosted => frostByDefault && frostIntensity > 0;
 
   /// The fake refraction edge offset in pixels used by [FakeGlass].
   ///
@@ -219,7 +235,7 @@ class LiquidGlassSettings with EquatableMixin {
     double? visibility,
     Color? glassColor,
     double? thickness,
-    double? blur,
+    double? frostIntensity,
     double? chromaticAberration,
     double? blend,
     double? lightAngle,
@@ -227,7 +243,7 @@ class LiquidGlassSettings with EquatableMixin {
     double? ambientStrength,
     double? refractiveIndex,
     double? saturation,
-    bool? frosted,
+    bool? frostByDefault,
     double? fakeGlassRefraction,
     double? fakeGlassRefractionFrostedMultiplier,
   }) =>
@@ -235,33 +251,76 @@ class LiquidGlassSettings with EquatableMixin {
         visibility: visibility ?? this.visibility,
         glassColor: glassColor ?? this.glassColor,
         thickness: thickness ?? this.thickness,
-        blur: blur ?? this.blur,
+        frostIntensity: frostIntensity ?? this.frostIntensity,
         chromaticAberration: chromaticAberration ?? this.chromaticAberration,
         lightAngle: lightAngle ?? this.lightAngle,
         lightIntensity: lightIntensity ?? this.lightIntensity,
         ambientStrength: ambientStrength ?? this.ambientStrength,
         refractiveIndex: refractiveIndex ?? this.refractiveIndex,
         saturation: saturation ?? this.saturation,
-        frosted: frosted ?? this.frosted,
+        frostByDefault: frostByDefault ?? this.frostByDefault,
         fakeGlassRefraction: fakeGlassRefraction ?? this.fakeGlassRefraction,
         fakeGlassRefractionFrostedMultiplier:
             fakeGlassRefractionFrostedMultiplier ??
                 this.fakeGlassRefractionFrostedMultiplier,
       );
 
+  /// Linearly interpolates between two [LiquidGlassSettings].
+  ///
+  /// The [t] parameter represents the interpolation progress from 0.0 to 1.0,
+  /// where 0.0 returns [a] and 1.0 returns [b].
+  ///
+  /// Boolean properties ([frostByDefault]) switch at t >= 0.5.
+  ///
+  /// Example:
+  /// ```dart
+  /// final settings = LiquidGlassSettings.lerp(
+  ///   LiquidGlassSettings(visibility: 0, frostIntensity: 1),
+  ///   LiquidGlassSettings(visibility: 1, frostIntensity: 10),
+  ///   0.5,
+  /// ); // visibility: 0.5, frostIntensity: 5.5
+  /// ```
+  static LiquidGlassSettings lerp(
+    LiquidGlassSettings a,
+    LiquidGlassSettings b,
+    double t,
+  ) {
+    return LiquidGlassSettings(
+      visibility: ui.lerpDouble(a.visibility, b.visibility, t)!,
+      glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
+      thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
+      frostIntensity: ui.lerpDouble(a.frostIntensity, b.frostIntensity, t)!,
+      chromaticAberration:
+          ui.lerpDouble(a.chromaticAberration, b.chromaticAberration, t)!,
+      lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,
+      lightIntensity: ui.lerpDouble(a.lightIntensity, b.lightIntensity, t)!,
+      ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
+      refractiveIndex: ui.lerpDouble(a.refractiveIndex, b.refractiveIndex, t)!,
+      saturation: ui.lerpDouble(a.saturation, b.saturation, t)!,
+      frostByDefault: t < 0.5 ? a.frostByDefault : b.frostByDefault,
+      fakeGlassRefraction:
+          ui.lerpDouble(a.fakeGlassRefraction, b.fakeGlassRefraction, t)!,
+      fakeGlassRefractionFrostedMultiplier: ui.lerpDouble(
+        a.fakeGlassRefractionFrostedMultiplier,
+        b.fakeGlassRefractionFrostedMultiplier,
+        t,
+      )!,
+    );
+  }
+
   @override
   List<Object?> get props => [
         visibility,
         glassColor,
         thickness,
-        blur,
+        frostIntensity,
         chromaticAberration,
         lightAngle,
         lightIntensity,
         ambientStrength,
         refractiveIndex,
         saturation,
-        frosted,
+        frostByDefault,
         fakeGlassRefraction,
         fakeGlassRefractionFrostedMultiplier,
       ];

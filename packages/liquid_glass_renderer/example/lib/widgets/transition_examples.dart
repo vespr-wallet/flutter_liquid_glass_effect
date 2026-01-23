@@ -1134,7 +1134,7 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
     frostByDefault: false, // No blur
     lightIntensity: 0, // No specular
     saturation: 1.0, // Normal saturation
-    fakeGlassRefraction: 0, // No refraction for FakeGlass
+    fakeGlassRefraction: 0, // No refraction for fake glass mode
     glassColor: Color.fromARGB(0, 0, 0, 0), // Fully transparent
   );
 

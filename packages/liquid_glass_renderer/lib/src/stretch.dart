@@ -344,11 +344,11 @@ extension OffsetResistanceExtension on Offset {
   }
 }
 
-/// A [Transform] wrapper that automatically signals transform state to
-/// FakeGlass for correct refraction coordinate handling.
+/// A [Transform] wrapper that automatically signals transform state for
+/// correct refraction coordinate handling in fake glass mode.
 ///
 /// Use this instead of [Transform] when applying transforms to widgets
-/// containing FakeGlass or LiquidGlass with fake mode enabled.
+/// containing LiquidGlass with fake mode enabled.
 ///
 /// When [transform] is not identity, this widget wraps its child with
 /// [LiquidStretchScale] to signal that local coordinates should be used
@@ -357,7 +357,7 @@ extension OffsetResistanceExtension on Offset {
 /// ```dart
 /// LiquidTransform(
 ///   transform: Matrix4.rotationZ(0.1),
-///   child: FakeGlass(...),
+///   child: LiquidGlass(...),
 /// )
 /// ```
 class LiquidTransform extends StatefulWidget {

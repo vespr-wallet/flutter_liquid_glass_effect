@@ -206,7 +206,7 @@ class LiquidGlassSettings with EquatableMixin {
   /// Returns false if [frostIntensity] is <= 0, regardless of [frostByDefault].
   bool get frosted => frostByDefault && frostIntensity > 0;
 
-  /// The fake refraction edge offset in pixels used by [FakeGlass].
+  /// The fake refraction edge offset in pixels used by fake glass mode.
   ///
   /// This creates a non-uniform scale effect to simulate refraction when
   /// custom shaders are not available (non-Impeller devices).
@@ -289,7 +289,23 @@ class LiquidGlassSettings with EquatableMixin {
       visibility: ui.lerpDouble(a.visibility, b.visibility, t)!,
       glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
       thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
-      frostIntensity: ui.lerpDouble(a.frostIntensity, b.frostIntensity, t)!,
+      frostIntensity: switch (t) {
+        <= 0 => a.frostIntensity,
+        >= 1 => b.frostIntensity,
+        _ => () {
+            if (a.frostByDefault && !b.frostByDefault) {
+              // transition from frosted to non-frosted
+              return ui.lerpDouble(a.frostIntensity, 0.0, t)!;
+            } else if (!a.frostByDefault && b.frostByDefault) {
+              // transition from non-frosted to frosted
+              return ui.lerpDouble(0.0, b.frostIntensity, t)!;
+            }
+            // transition between frosted and non-frosted
+            final start = a.frostIntensity;
+            final end = b.frostIntensity;
+            return ui.lerpDouble(start, end, t)!;
+          }(),
+      },
       chromaticAberration:
           ui.lerpDouble(a.chromaticAberration, b.chromaticAberration, t)!,
       lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,

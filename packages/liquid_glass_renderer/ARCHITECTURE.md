@@ -117,7 +117,6 @@ LiquidGlassLayer
 | `GlassGlow` | `glass_glow.dart` | Touch-responsive glow effect |
 | `GlassGlowLayer` | `glass_glow.dart` | Surface that paints the glow |
 | `LiquidStretch` | `stretch.dart` | Optional squash/stretch on drag |
-| `FakeGlass` | `fake_glass.dart` | Fallback for non-Impeller (uses BackdropFilter) |
 
 ### Render Layer
 
@@ -277,12 +276,12 @@ LiquidGlassLayer(
 
 **Performance optimization**: Blur is only applied to the frosted shapes' area, not the entire layer. This means mixing frosted and non-frosted shapes has minimal overhead.
 
-### FakeGlass (non-Impeller fallback)
+### Fake Glass Mode (non-Impeller fallback)
 Automatically used when:
 - Impeller is not available
 - `LiquidGlassLayer(fake: true)` is set
 
-Uses standard `BackdropFilter` instead of custom shaders.
+Uses standard `BackdropFilter` instead of custom shaders while maintaining the same widget structure.
 
 **Features:**
 - Supports `frosted` parameter (blur vs clear)
@@ -295,14 +294,17 @@ LiquidGlassSettings(
   // Set to 0 to disable fake refraction
 )
 
-FakeGlass(
-  shape: LiquidRoundedSuperellipse(borderRadius: 20),
-  frosted: false,  // Clear glass with magnification, no blur
-  child: Text('Clear'),
+LiquidGlassLayer(
+  fake: true,
+  child: LiquidGlass(
+    shape: LiquidRoundedSuperellipse(borderRadius: 20),
+    frosted: false,  // Clear glass with magnification, no blur
+    child: Text('Clear'),
+  ),
 )
 ```
 
-**Note:** The fake refraction creates a uniform magnification effect centered on the shape. It's subtle but provides some visual interest for non-frosted FakeGlass.
+**Note:** The fake refraction creates a uniform magnification effect centered on the shape. It's subtle but provides some visual interest for non-frosted shapes.
 
 ## Usage Example
 

@@ -76,7 +76,6 @@ class BasicApp extends HookWidget {
                     fakeGlassConfigs: FakeGlassConfigs(
                       forceEnabled: fake.value,
                       refraction: 5.0,
-                      refractionFrostedMultiplier: 1.5,
                     ),
                   );
                   return LiquidGlassLayer(
@@ -90,8 +89,11 @@ class BasicApp extends HookWidget {
                           spacing: 16,
                           children: [
                             LiquidStretch(
-                              child: LiquidGlass(
-                                frosted: false,
+                              child: LiquidGlass.withOwnLayer(
+                                settings: settings.copyWith(
+                                  lightAngle: light.value,
+                                  frostIntensity: 0,
+                                ),
                                 debugLabel: 'noFrost',
                                 shape: LiquidRoundedSuperellipse(
                                   borderRadius: 20,

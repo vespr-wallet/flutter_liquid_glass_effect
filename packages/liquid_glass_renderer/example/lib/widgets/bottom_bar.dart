@@ -579,7 +579,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                           ),
                           thickness: 4,
                           lightIntensity: 2,
-                          frosted: false,
+                          frostIntensity: 0,
                           saturation: 1.5,
                           // disable refraction
                           // because it flickers during animation (Impeller BUG?)

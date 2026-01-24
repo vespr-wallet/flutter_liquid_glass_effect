@@ -105,20 +105,83 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
   late final logger = Logger(LgrLogNames.layer);
 
+  // Animation support for settings changes
+  AnimationController? _controller;
+  CurvedAnimation? _curvedAnimation;
+  LiquidGlassSettings? _fromSettings;
+  LiquidGlassSettings? _animatedSettings;
+
+  @override
+  void didUpdateWidget(LiquidGlassLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.settings == oldWidget.settings) return;
+
+    final duration = widget.settings.animationDuration;
+    if (duration == Duration.zero) {
+      _clearAnimationState();
+      return;
+    }
+
+    _fromSettings = _animatedSettings ?? oldWidget.settings;
+    _startAnimation(duration, widget.settings.animationCurve);
+  }
+
+  void _startAnimation(Duration duration, Curve curve) {
+    _controller ??= AnimationController(vsync: this)
+      ..addListener(_onAnimationTick)
+      ..addStatusListener(_onAnimationStatus);
+
+    if (_controller!.duration != duration) {
+      _controller!.duration = duration;
+    }
+
+    _curvedAnimation?.dispose();
+    _curvedAnimation = CurvedAnimation(parent: _controller!, curve: curve);
+
+    _controller!.forward(from: 0);
+  }
+
+  void _onAnimationTick() {
+    final t = _curvedAnimation?.value ?? _controller!.value;
+    _animatedSettings =
+        LiquidGlassSettings.lerp(_fromSettings!, widget.settings, t);
+    setState(() {});
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _clearAnimationState();
+      setState(() {});
+    }
+  }
+
+  void _clearAnimationState() {
+    _fromSettings = null;
+    _animatedSettings = null;
+  }
+
   @override
   void dispose() {
+    _curvedAnimation?.dispose();
+    _controller?.dispose();
     _link.dispose();
     super.dispose();
   }
 
+  LiquidGlassSettings get _effectiveSettings =>
+      _animatedSettings ?? widget.settings;
+
   @override
   Widget build(BuildContext context) {
+    final settings = _effectiveSettings;
+
     // Use fake glass when forced via settings or when Impeller is not available
-    final useFakeGlass = widget.settings.shouldUseFakeGlass;
+    final useFakeGlass = settings.shouldUseFakeGlass;
 
     if (useFakeGlass) {
       // Only log info if we're falling back due to platform, not forced
-      if (!widget.settings.fakeGlassConfigs.forceEnabled) {
+      if (!settings.fakeGlassConfigs.forceEnabled) {
         logger.info(
           'Shader filters not supported (Skia mode). '
           'Using fake glass fallback. For best visual quality and performance, '
@@ -129,7 +192,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
       // This enables unified widget grouping and layer behavior
       return RepaintBoundary(
         child: LiquidGlassRenderScope(
-          settings: widget.settings,
+          settings: settings,
           child: InheritedGeometryRenderLink(
             link: _link,
             child: BackdropGroup(
@@ -137,7 +200,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
                 builder: (context) => _RawShapes(
                   renderShader: null,
                   backdropKey: BackdropGroup.of(context)?.backdropKey,
-                  settings: widget.settings,
+                  settings: settings,
                   link: _link,
                   child: widget.child,
                 ),
@@ -150,7 +213,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
 
     return RepaintBoundary(
       child: LiquidGlassRenderScope(
-        settings: widget.settings,
+        settings: settings,
         child: InheritedGeometryRenderLink(
           link: _link,
           child: ShaderBuilder(
@@ -160,7 +223,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
               backdropKey: widget.useBackdropGroup
                   ? BackdropGroup.of(context)?.backdropKey
                   : null,
-              settings: widget.settings,
+              settings: settings,
               link: _link,
               child: child!,
             ),
@@ -238,11 +301,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   final _clipRectLayerHandle = LayerHandle<ClipRectLayer>();
 
   // Layer handles for fake glass rendering
-  final _fakeGlassBlurLayerHandle = LayerHandle<BackdropFilterLayer>();
-  final _fakeGlassFrostedClipPathLayerHandle = LayerHandle<ClipPathLayer>();
-  final _fakeGlassNonFrostedClipPathLayerHandle = LayerHandle<ClipPathLayer>();
-  final _fakeGlassNonFrostedFilterLayerHandle =
-      LayerHandle<BackdropFilterLayer>();
+  final _fakeGlassFilterLayerHandle = LayerHandle<BackdropFilterLayer>();
+  final _fakeGlassClipPathLayerHandle = LayerHandle<ClipPathLayer>();
 
   // Cache for saturation matrix
   double? _cachedSaturationValue;
@@ -258,17 +318,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   /// Builds a combined filter for fake glass effects.
-  /// Returns null if no filter effects are needed.
   ///
   /// Uses the layer's size for refraction calculations to ensure consistent
   /// positioning regardless of which shapes are enabled.
-  ImageFilter? _buildFakeGlassFilter({
-    required bool frosted,
-  }) {
-    // Always apply the multiplier since it's lerped during frosted state
-    // transitions (lerps to/from 1.0), ensuring smooth refraction changes.
-    final refraction = settings.fakeGlassConfigs.refraction *
-        settings.fakeGlassConfigs.refractionFrostedMultiplier;
+  ///
+  /// Always includes blur (with frostIntensity as sigma) to avoid animation
+  /// glitches when transitioning between frosted and non-frosted states.
+  ImageFilter _buildFakeGlassFilter() {
+    final refraction = settings.fakeGlassConfigs.refraction;
 
     // Use layer center for the refraction effect to ensure consistent
     // positioning regardless of which shapes are enabled
@@ -281,47 +338,33 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // Boost saturation to match real glass shader appearance
     final boostedSaturation = (1.0 +
-            (settings.saturation - 1.0) *
-                kFakeGlassSaturationMultiplier)
+            (settings.saturation - 1.0) * kFakeGlassSaturationMultiplier)
         .clamp(0.0, double.infinity);
     final saturationFilter = boostedSaturation != 1.0
         ? ColorFilter.matrix(_getSaturationMatrix(boostedSaturation))
         : null;
 
-    ImageFilter? combinedFilter;
+    // Always include blur to avoid animation glitches when frostIntensity
+    // transitions between 0 and non-zero. A sigma of 0 is a no-op for the GPU.
+    final blurFilter = ImageFilter.blur(
+      sigmaX: settings.frostIntensity,
+      sigmaY: settings.frostIntensity,
+      tileMode: TileMode.mirror,
+    );
 
-    if (frosted) {
-      final blurFilter = ImageFilter.blur(
-        sigmaX: settings.frostIntensity,
-        sigmaY: settings.frostIntensity,
-        tileMode: TileMode.mirror,
+    // Compose: refraction -> saturation -> blur
+    var combinedFilter = blurFilter;
+    if (saturationFilter != null) {
+      combinedFilter = ImageFilter.compose(
+        inner: saturationFilter,
+        outer: combinedFilter,
       );
-
-      // Compose: refraction -> saturation -> blur
-      combinedFilter = blurFilter;
-      if (saturationFilter != null) {
-        combinedFilter = ImageFilter.compose(
-          inner: saturationFilter,
-          outer: combinedFilter,
-        );
-      }
-      if (refractionFilter != null) {
-        combinedFilter = ImageFilter.compose(
-          inner: refractionFilter,
-          outer: combinedFilter,
-        );
-      }
-    } else {
-      // Non-frosted: only refraction (and optionally saturation)
-      combinedFilter = refractionFilter;
-      if (saturationFilter != null) {
-        combinedFilter = combinedFilter == null
-            ? saturationFilter
-            : ImageFilter.compose(
-                inner: saturationFilter,
-                outer: combinedFilter,
-              );
-      }
+    }
+    if (refractionFilter != null) {
+      combinedFilter = ImageFilter.compose(
+        inner: refractionFilter,
+        outer: combinedFilter,
+      );
     }
 
     return combinedFilter;
@@ -343,8 +386,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
-  final _nonFrostedClipPathLayerHandle = LayerHandle<ClipPathLayer>();
-
   @override
   void paintLiquidGlass(
     PaintingContext context,
@@ -354,103 +395,60 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ) {
     if (!attached) return;
 
-    // Separate shapes into frosted and non-frosted
-    final frostedShapes =
-        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
-    final nonFrostedShapes =
-        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
-
-    for (final shape in shapes) {
-      if (!shape.$1.attached) continue;
-      final isFrosted = shape.$2.shapes.firstOrNull?.frosted ?? true;
-      if (isFrosted) {
-        frostedShapes.add(shape);
-      } else {
-        nonFrostedShapes.add(shape);
-      }
+    // Filter out detached shapes
+    final attachedShapes = shapes.where((s) => s.$1.attached).toList();
+    if (attachedShapes.isEmpty) {
+      _blurLayerHandle.layer = null;
+      _clipPathLayerHandle.layer = null;
+      return;
     }
 
     final shaderLayer = (_shaderHandle.layer ??= BackdropFilterLayer())
       ..filter = ImageFilter.shader(renderShader!);
 
-    // 1. Apply blur ONLY to frosted shapes
-    if (frostedShapes.isNotEmpty && settings.frostIntensity > 0) {
-      final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
-        ..backdropKey = backdropKey
-        ..filter = ImageFilter.blur(
-          tileMode: TileMode.mirror,
-          sigmaX: settings.frostIntensity,
-          sigmaY: settings.frostIntensity,
-        );
-
-      final frostedClipPath = Path();
-      for (final geometry in frostedShapes) {
-        frostedClipPath.addPath(
-          geometry.$2.path,
-          Offset.zero,
-          matrix4: geometry.$3.storage,
-        );
-      }
-
-      _clipPathLayerHandle.layer = context.pushClipPath(
-        needsCompositing,
-        offset,
-        boundingBox,
-        frostedClipPath,
-        (context, offset) {
-          context.pushLayer(
-            blurLayer,
-            (context, offset) {
-              // Paint inside-glass content for frosted shapes
-              paintShapeContents(
-                context,
-                offset,
-                frostedShapes,
-                insideGlass: true,
-              );
-            },
-            offset,
-          );
-        },
-        oldLayer: _clipPathLayerHandle.layer,
+    // Build clip path from all shapes
+    final clipPath = Path();
+    for (final geometry in attachedShapes) {
+      clipPath.addPath(
+        geometry.$2.path,
+        Offset.zero,
+        matrix4: geometry.$3.storage,
       );
-    } else {
-      _blurLayerHandle.layer = null;
-      _clipPathLayerHandle.layer = null;
     }
 
-    // 2. Paint inside-glass content for non-frosted shapes (no blur)
-    if (nonFrostedShapes.isNotEmpty) {
-      final nonFrostedClipPath = Path();
-      for (final geometry in nonFrostedShapes) {
-        nonFrostedClipPath.addPath(
-          geometry.$2.path,
-          Offset.zero,
-          matrix4: geometry.$3.storage,
-        );
-      }
-
-      _nonFrostedClipPathLayerHandle.layer = context.pushClipPath(
-        needsCompositing,
-        offset,
-        boundingBox,
-        nonFrostedClipPath,
-        (context, offset) {
-          // Paint inside-glass content for non-frosted shapes (no blur)
-          paintShapeContents(
-            context,
-            offset,
-            nonFrostedShapes,
-            insideGlass: true,
-          );
-        },
-        oldLayer: _nonFrostedClipPathLayerHandle.layer,
+    // Always use the blur layer to avoid animation glitches when frostIntensity
+    // transitions between 0 and non-zero. A sigma of 0 is a no-op for the GPU.
+    final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
+      ..backdropKey = backdropKey
+      ..filter = ImageFilter.blur(
+        tileMode: TileMode.mirror,
+        sigmaX: settings.frostIntensity,
+        sigmaY: settings.frostIntensity,
       );
-    } else {
-      _nonFrostedClipPathLayerHandle.layer = null;
-    }
 
-    // 3. Apply shader to ALL shapes
+    _clipPathLayerHandle.layer = context.pushClipPath(
+      needsCompositing,
+      offset,
+      boundingBox,
+      clipPath,
+      (context, offset) {
+        context.pushLayer(
+          blurLayer,
+          (context, offset) {
+            paintShapeContents(
+              context,
+              offset,
+              attachedShapes,
+              insideGlass: true,
+            );
+          },
+          offset,
+        );
+      },
+      oldLayer: _clipPathLayerHandle.layer,
+    );
+
+    // Apply shader to ALL shapes
     _clipRectLayerHandle.layer = context.pushClipRect(
       needsCompositing,
       offset,
@@ -486,99 +484,53 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // regardless of which shapes are enabled
     final layerBounds = Offset.zero & size;
 
-    // Separate shapes into frosted and non-frosted
-    final frostedShapes =
-        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
-    final nonFrostedShapes =
-        <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
-
-    for (final shape in shapes) {
-      if (!shape.$1.attached) continue;
-      final isFrosted = shape.$2.shapes.firstOrNull?.frosted ?? true;
-      if (isFrosted) {
-        frostedShapes.add(shape);
-      } else {
-        nonFrostedShapes.add(shape);
-      }
+    // Filter out detached shapes
+    final attachedShapes = shapes.where((s) => s.$1.attached).toList();
+    if (attachedShapes.isEmpty) {
+      _fakeGlassFilterLayerHandle.layer = null;
+      _fakeGlassClipPathLayerHandle.layer = null;
+      return;
     }
 
-    // 1. Apply combined filter (blur + refraction + saturation) 
-    // to frosted shapes
-    if (frostedShapes.isNotEmpty) {
-      final combinedFilter = _buildFakeGlassFilter(
-        frosted: true,
+    // All shapes in a layer share the same frost state based on frostIntensity
+    final isFrosted = settings.frostIntensity > 0;
+
+    // Build combined filter and clip path
+    final combinedFilter = _buildFakeGlassFilter();
+    final clipPath = Path();
+    for (final geometry in attachedShapes) {
+      clipPath.addPath(
+        geometry.$2.path,
+        Offset.zero,
+        matrix4: geometry.$3.storage,
       );
+    }
 
-      final frostedClipPath = Path();
-      for (final geometry in frostedShapes) {
-        frostedClipPath.addPath(
-          geometry.$2.path,
-          Offset.zero,
-          matrix4: geometry.$3.storage,
-        );
-      }
-
-      if (combinedFilter != null) {
-        final blurLayer = (_fakeGlassBlurLayerHandle.layer ??=
-            BackdropFilterLayer())
+    // Always use the same layer handles to avoid animation glitches
+    final filterLayer =
+        (_fakeGlassFilterLayerHandle.layer ??= BackdropFilterLayer())
           ..backdropKey = backdropKey
           ..filter = combinedFilter;
 
-        _fakeGlassFrostedClipPathLayerHandle.layer = context.pushClipPath(
-          needsCompositing,
-          offset,
-          layerBounds,
-          frostedClipPath,
+    _fakeGlassClipPathLayerHandle.layer = context.pushClipPath(
+      needsCompositing,
+      offset,
+      layerBounds,
+      clipPath,
+      (context, offset) {
+        context.pushLayer(
+          filterLayer,
           (context, offset) {
-            context.pushLayer(
-              blurLayer,
-              (context, offset) {
-                // Paint inside-glass content for frosted shapes
-                paintShapeContents(
-                  context,
-                  offset,
-                  frostedShapes,
-                  insideGlass: true,
-                );
-
-                // Paint fake glass visual effects for each frosted shape
-                for (final (_, geometry, transform) in frostedShapes) {
-                  final transformedPath =
-                      geometry.path.transform(transform.storage);
-                  final transformedBounds = MatrixUtils.transformRect(
-                    transform,
-                    geometry.bounds,
-                  );
-                  paintFakeGlassEffects(
-                    context.canvas,
-                    transformedPath,
-                    transformedBounds,
-                    frosted: true,
-                  );
-                }
-              },
-              offset,
-            );
-          },
-          oldLayer: _fakeGlassFrostedClipPathLayerHandle.layer,
-        );
-      } else {
-        // No filter needed, just clip and paint
-        _fakeGlassBlurLayerHandle.layer = null;
-        _fakeGlassFrostedClipPathLayerHandle.layer = context.pushClipPath(
-          needsCompositing,
-          offset,
-          layerBounds,
-          frostedClipPath,
-          (context, offset) {
+            // Paint inside-glass content
             paintShapeContents(
               context,
               offset,
-              frostedShapes,
+              attachedShapes,
               insideGlass: true,
             );
 
-            for (final (_, geometry, transform) in frostedShapes) {
+            // Paint fake glass visual effects for each shape
+            for (final (_, geometry, transform) in attachedShapes) {
               final transformedPath =
                   geometry.path.transform(transform.storage);
               final transformedBounds = MatrixUtils.transformRect(
@@ -589,117 +541,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 context.canvas,
                 transformedPath,
                 transformedBounds,
-                frosted: true,
+                frosted: isFrosted,
               );
             }
           },
-          oldLayer: _fakeGlassFrostedClipPathLayerHandle.layer,
-        );
-      }
-    } else {
-      _fakeGlassBlurLayerHandle.layer = null;
-      _fakeGlassFrostedClipPathLayerHandle.layer = null;
-    }
-
-    // 2. Paint non-frosted shapes (with refraction/saturation but no blur)
-    if (nonFrostedShapes.isNotEmpty) {
-      final nonFrostedFilter = _buildFakeGlassFilter(
-        frosted: false,
-      );
-
-      final nonFrostedClipPath = Path();
-      for (final geometry in nonFrostedShapes) {
-        nonFrostedClipPath.addPath(
-          geometry.$2.path,
-          Offset.zero,
-          matrix4: geometry.$3.storage,
-        );
-      }
-
-      if (nonFrostedFilter != null) {
-        final filterLayer = (_fakeGlassNonFrostedFilterLayerHandle.layer ??=
-            BackdropFilterLayer())
-          ..backdropKey = backdropKey
-          ..filter = nonFrostedFilter;
-
-        _fakeGlassNonFrostedClipPathLayerHandle.layer = context.pushClipPath(
-          needsCompositing,
           offset,
-          layerBounds,
-          nonFrostedClipPath,
-          (context, offset) {
-            context.pushLayer(
-              filterLayer,
-              (context, offset) {
-                // Paint inside-glass content for non-frosted shapes
-                paintShapeContents(
-                  context,
-                  offset,
-                  nonFrostedShapes,
-                  insideGlass: true,
-                );
-
-                // Paint fake glass visual effects for each non-frosted shape
-                for (final (_, geometry, transform) in nonFrostedShapes) {
-                  final transformedPath =
-                      geometry.path.transform(transform.storage);
-                  final transformedBounds = MatrixUtils.transformRect(
-                    transform,
-                    geometry.bounds,
-                  );
-                  paintFakeGlassEffects(
-                    context.canvas,
-                    transformedPath,
-                    transformedBounds,
-                    frosted: false,
-                  );
-                }
-              },
-              offset,
-            );
-          },
-          oldLayer: _fakeGlassNonFrostedClipPathLayerHandle.layer,
         );
-      } else {
-        // No filter needed, just clip and paint
-        _fakeGlassNonFrostedFilterLayerHandle.layer = null;
-        _fakeGlassNonFrostedClipPathLayerHandle.layer = context.pushClipPath(
-          needsCompositing,
-          offset,
-          layerBounds,
-          nonFrostedClipPath,
-          (context, offset) {
-            paintShapeContents(
-              context,
-              offset,
-              nonFrostedShapes,
-              insideGlass: true,
-            );
+      },
+      oldLayer: _fakeGlassClipPathLayerHandle.layer,
+    );
 
-            for (final (_, geometry, transform) in nonFrostedShapes) {
-              final transformedPath =
-                  geometry.path.transform(transform.storage);
-              final transformedBounds = MatrixUtils.transformRect(
-                transform,
-                geometry.bounds,
-              );
-              paintFakeGlassEffects(
-                context.canvas,
-                transformedPath,
-                transformedBounds,
-                frosted: false,
-              );
-            }
-          },
-          oldLayer: _fakeGlassNonFrostedClipPathLayerHandle.layer,
-        );
-      }
-    } else {
-      _fakeGlassNonFrostedClipPathLayerHandle.layer = null;
-      _fakeGlassNonFrostedFilterLayerHandle.layer = null;
-    }
-
-    // 3. Paint outside-glass content for all shapes
+    // Paint outside-glass content for all shapes
     paintShapeContents(context, offset, shapes, insideGlass: false);
   }
 
@@ -709,11 +561,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _shaderHandle.layer = null;
     _clipPathLayerHandle.layer = null;
     _clipRectLayerHandle.layer = null;
-    _nonFrostedClipPathLayerHandle.layer = null;
-    _fakeGlassBlurLayerHandle.layer = null;
-    _fakeGlassFrostedClipPathLayerHandle.layer = null;
-    _fakeGlassNonFrostedClipPathLayerHandle.layer = null;
-    _fakeGlassNonFrostedFilterLayerHandle.layer = null;
+    _fakeGlassFilterLayerHandle.layer = null;
+    _fakeGlassClipPathLayerHandle.layer = null;
     super.dispose();
   }
 }

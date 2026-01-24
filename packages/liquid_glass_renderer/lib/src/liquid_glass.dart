@@ -40,7 +40,6 @@ class LiquidGlass extends StatefulWidget {
   const LiquidGlass({
     required this.child,
     required this.shape,
-    this.frosted,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     this.debugLabel,
@@ -61,7 +60,6 @@ class LiquidGlass extends StatefulWidget {
     required this.child,
     required this.shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
-    this.frosted,
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
@@ -94,14 +92,6 @@ class LiquidGlass extends StatefulWidget {
   /// Defaults to [Clip.hardEdge], so [child] will be clipped to the shape.
   final Clip clipBehavior;
 
-  /// Whether this glass shape should apply backdrop blur (frosted).
-  ///
-  /// When true, the background behind this shape will be blurred.
-  /// When false, only refraction is applied (clear glass).
-  ///
-  /// If null, uses the default from [LiquidGlassSettings.isFrosted].
-  final bool? frosted;
-
   /// The settings for this glass if it is supposed to create its own layer.
   final LiquidGlassSettings? ownLayerSettings;
 
@@ -115,46 +105,23 @@ class LiquidGlass extends StatefulWidget {
 
 class _LiquidGlassState extends State<LiquidGlass>
     with SingleTickerProviderStateMixin {
-  // Lazily created, reused across animations
+  // Lazily created, reused across shape animations
   AnimationController? _controller;
   CurvedAnimation? _curvedAnimation;
 
-  // Animation start/end values (only set during active animation)
+  // Shape animation values
   LiquidShape? _fromShape;
-  LiquidGlassSettings? _fromSettings;
-  LiquidGlassSettings? _toSettings;
-
-  // Current animated values (null when not animating)
   LiquidShape? _animatedShape;
-  LiquidGlassSettings? _animatedSettings;
 
-  // Cached context settings for detecting changes
+  // Cached settings for animation duration/curve lookup
   LiquidGlassSettings? _contextSettings;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Only handle context settings for shared layers
-    if (widget.ownLayerSettings != null) return;
-
-    final newContextSettings = LiquidGlassSettings.of(context);
-    final oldContextSettings = _contextSettings;
-    _contextSettings = newContextSettings;
-
-    // Detect context settings changes and animate
-    final settingsChanged =
-        oldContextSettings != null && newContextSettings != oldContextSettings;
-    if (settingsChanged) {
-      final duration = newContextSettings.animationDuration;
-      if (duration == Duration.zero) {
-        _clearAnimationState();
-        return;
-      }
-
-      _fromSettings = _animatedSettings ?? oldContextSettings;
-      _toSettings = newContextSettings;
-      _startAnimation(duration, newContextSettings.animationCurve);
+    // Track context settings for animation parameters (duration/curve).
+    if (widget.ownLayerSettings == null) {
+      _contextSettings = LiquidGlassSettings.of(context);
     }
   }
 
@@ -162,16 +129,10 @@ class _LiquidGlassState extends State<LiquidGlass>
   void didUpdateWidget(LiquidGlass oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final newSettings = widget.ownLayerSettings;
-    final oldSettings = oldWidget.ownLayerSettings;
+    if (widget.shape == oldWidget.shape) return;
 
-    final shapeChanged = widget.shape != oldWidget.shape;
-    final settingsChanged = newSettings != oldSettings;
-
-    if (!shapeChanged && !settingsChanged) return;
-
-    // For shared layers, settings changes are handled in didChangeDependencies
-    final effectiveSettings = newSettings ?? _contextSettings;
+    // Get animation params from settings
+    final effectiveSettings = widget.ownLayerSettings ?? _contextSettings;
     final duration = effectiveSettings?.animationDuration ?? Duration.zero;
 
     if (duration == Duration.zero) {
@@ -180,11 +141,6 @@ class _LiquidGlassState extends State<LiquidGlass>
     }
 
     _fromShape = _animatedShape ?? oldWidget.shape;
-    if (settingsChanged) {
-      _fromSettings = _animatedSettings ?? oldSettings;
-      _toSettings = newSettings;
-    }
-
     _startAnimation(
       duration,
       effectiveSettings?.animationCurve ?? Curves.easeInOut,
@@ -192,49 +148,36 @@ class _LiquidGlassState extends State<LiquidGlass>
   }
 
   void _startAnimation(Duration duration, Curve curve) {
-    // Create controller lazily
     _controller ??= AnimationController(vsync: this)
       ..addListener(_onAnimationTick)
       ..addStatusListener(_onAnimationStatus);
 
-    // Update duration if changed
     if (_controller!.duration != duration) {
       _controller!.duration = duration;
     }
 
-    // Update curve
     _curvedAnimation?.dispose();
     _curvedAnimation = CurvedAnimation(parent: _controller!, curve: curve);
 
-    // Reset and start
     _controller!.forward(from: 0);
   }
 
   void _onAnimationTick() {
     final t = _curvedAnimation?.value ?? _controller!.value;
-
-    // Compute interpolated values
     _animatedShape = LiquidShape.lerp(_fromShape, widget.shape, t);
-    _animatedSettings = _fromSettings != null && _toSettings != null
-        ? LiquidGlassSettings.lerp(_fromSettings!, _toSettings!, t)
-        : _toSettings;
-
-    setState(() {}); // Minimal rebuild
+    setState(() {});
   }
 
   void _onAnimationStatus(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
       _clearAnimationState();
-      setState(() {}); // Final rebuild with target values
+      setState(() {});
     }
   }
 
   void _clearAnimationState() {
     _fromShape = null;
-    _fromSettings = null;
-    _toSettings = null;
     _animatedShape = null;
-    _animatedSettings = null;
   }
 
   @override
@@ -246,40 +189,24 @@ class _LiquidGlassState extends State<LiquidGlass>
 
   @override
   Widget build(BuildContext context) {
-    // Use animated values if animating, otherwise widget values
     final shape = _animatedShape ?? widget.shape;
-    final settings = _animatedSettings ?? widget.ownLayerSettings;
 
-    // If we have our own layer settings, we create our own layer.
-    if (settings != null) {
+    // Only create own layer if widget was constructed with ownLayerSettings.
+    // Settings animation is handled by LiquidGlassLayer.
+    if (widget.ownLayerSettings != null) {
       return LiquidGlassLayer(
-        settings: settings,
+        settings: widget.ownLayerSettings!,
         child: Builder(
-          builder: (context) => _buildGlassContent(context, shape, settings),
+          builder: (context) => _buildGlassContent(context, shape),
         ),
       );
     }
 
-    return _buildGlassContent(context, shape, null);
+    return _buildGlassContent(context, shape);
   }
 
-  Widget _buildGlassContent(
-    BuildContext context,
-    LiquidShape shape,
-    LiquidGlassSettings? ownSettings,
-  ) {
-    final settings = ownSettings ?? LiquidGlassSettings.of(context);
-    // During animation, derive frosted state from lerped frostIntensity
-    // to ensure smooth blur transitions. After animation ends, use the
-    // explicit frosted setting to respect the intended final state.
-    final bool resolvedFrosted;
-    if (_animatedSettings != null) {
-      // Animation in progress: use frostIntensity > 0 for smooth transition
-      resolvedFrosted = _animatedSettings!.frostIntensity > 0;
-    } else {
-      // No animation: use explicit frosted setting
-      resolvedFrosted = widget.frosted ?? settings.frosted;
-    }
+  Widget _buildGlassContent(BuildContext context, LiquidShape shape) {
+    final effectiveSettings = LiquidGlassSettings.of(context);
 
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
@@ -290,15 +217,14 @@ class _LiquidGlassState extends State<LiquidGlass>
     );
 
     // Use fake glass when forced via settings or when Impeller is not available
-    if (settings.shouldUseFakeGlass) {
+    if (effectiveSettings.shouldUseFakeGlass) {
       return _RawLiquidGlass(
         shader: null,
         renderLink: InheritedGeometryRenderLink.of(context)!,
-        settings: settings,
+        settings: effectiveSettings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
         glassContainsChild: widget.glassContainsChild,
-        frosted: resolvedFrosted,
         child: glassChild,
       );
     }
@@ -308,11 +234,10 @@ class _LiquidGlassState extends State<LiquidGlass>
       (context, shader, builtChild) => _RawLiquidGlass(
         shader: shader,
         renderLink: InheritedGeometryRenderLink.of(context)!,
-        settings: settings,
+        settings: effectiveSettings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
         glassContainsChild: widget.glassContainsChild,
-        frosted: resolvedFrosted,
         child: builtChild,
       ),
       assetKey: ShaderKeys.blendedGeometry,
@@ -330,7 +255,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.devicePixelRatio,
     required this.shape,
     required this.glassContainsChild,
-    required this.frosted,
   });
 
   final FragmentShader? shader;
@@ -339,7 +263,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
   final double devicePixelRatio;
   final LiquidShape shape;
   final bool glassContainsChild;
-  final bool frosted;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -350,7 +273,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       devicePixelRatio: devicePixelRatio,
       shape: shape,
       glassContainsChild: glassContainsChild,
-      frosted: frosted,
     );
   }
 
@@ -365,8 +287,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..devicePixelRatio = devicePixelRatio
       ..shape = shape
-      ..glassContainsChild = glassContainsChild
-      ..frosted = frosted;
+      ..glassContainsChild = glassContainsChild;
   }
 }
 
@@ -386,10 +307,8 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     required super.devicePixelRatio,
     required LiquidShape shape,
     required bool glassContainsChild,
-    required bool frosted,
   })  : _shape = shape,
-        _glassContainsChild = glassContainsChild,
-        _frosted = frosted;
+        _glassContainsChild = glassContainsChild;
 
   LiquidShape _shape;
 
@@ -414,17 +333,6 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
   set glassContainsChild(bool value) {
     if (_glassContainsChild == value) return;
     _glassContainsChild = value;
-    markNeedsPaint();
-  }
-
-  bool _frosted;
-
-  /// Whether this shape should apply backdrop blur (frosted glass).
-  bool get frosted => _frosted;
-  set frosted(bool value) {
-    if (_frosted == value) return;
-    _frosted = value;
-    markGeometryNeedsUpdate(force: true);
     markNeedsPaint();
   }
 
@@ -505,15 +413,13 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
       shape: _shape,
       glassContainsChild: _glassContainsChild,
       shapeBounds: bounds,
-      frosted: _frosted,
     );
 
     // Compare with cached geometry to determine if rebuild needed
     final cached = geometry?.shapes.firstOrNull;
     final needsUpdate = cached == null ||
         cached.shapeBounds != bounds ||
-        cached.shape != _shape ||
-        cached.frosted != _frosted;
+        cached.shape != _shape;
 
     return (bounds, [shapeGeometry], needsUpdate);
   }

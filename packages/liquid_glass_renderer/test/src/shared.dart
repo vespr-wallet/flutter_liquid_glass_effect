@@ -5,7 +5,7 @@ final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
 const settingsWithoutLighting = LiquidGlassSettings(
   lightIntensity: 0,
-  frosted: false,
+  frostIntensity: 0,
   liquidGlassConfigs: LiquidGlassConfigs(
     chromaticAberration: 0,
   ),

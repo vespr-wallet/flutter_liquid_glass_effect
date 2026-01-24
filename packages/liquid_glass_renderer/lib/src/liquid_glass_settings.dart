@@ -82,7 +82,6 @@ class FakeGlassConfigs with EquatableMixin {
   const FakeGlassConfigs({
     this.forceEnabled = false,
     this.refraction = 5.0,
-    this.refractionFrostedMultiplier = 1.5,
   });
 
   /// Whether to force fake glass rendering even on Impeller.
@@ -108,58 +107,32 @@ class FakeGlassConfigs with EquatableMixin {
   /// Defaults to 5.0 pixels.
   final double refraction;
 
-  /// Multiplier applied to [refraction] when the glass is frosted.
-  ///
-  /// Frosted glass typically has more pronounced refraction due to the
-  /// diffusion of light. This multiplier increases the magnification effect
-  /// when blur is applied.
-  ///
-  /// Defaults to 1.5 (1.5x the refraction when frosted).
-  final double refractionFrostedMultiplier;
-
   /// Creates a copy with the given values replaced.
   FakeGlassConfigs copyWith({
     bool? forceEnabled,
     double? refraction,
-    double? refractionFrostedMultiplier,
   }) =>
       FakeGlassConfigs(
         forceEnabled: forceEnabled ?? this.forceEnabled,
         refraction: refraction ?? this.refraction,
-        refractionFrostedMultiplier:
-            refractionFrostedMultiplier ?? this.refractionFrostedMultiplier,
       );
 
   /// Linearly interpolates between two [FakeGlassConfigs].
   ///
   /// Note: [forceEnabled] switches at t >= 0.5 (boolean lerp).
-  ///
-  /// When [frostedA] and [frostedB] are provided, [refractionFrostedMultiplier]
-  /// is lerped from/to 1.0 (neutral) during frosted state transitions to avoid
-  /// visual jumps.
   static FakeGlassConfigs lerp(
     FakeGlassConfigs a,
     FakeGlassConfigs b,
-    double t, {
-    bool? frostedA,
-    bool? frostedB,
-  }) {
+    double t,
+  ) {
     return FakeGlassConfigs(
       forceEnabled: t < 0.5 ? a.forceEnabled : b.forceEnabled,
       refraction: ui.lerpDouble(a.refraction, b.refraction, t)!,
-      refractionFrostedMultiplier: _lerpRefractionFrostedMultiplier(
-        a,
-        b,
-        t,
-        frostedA: frostedA,
-        frostedB: frostedB,
-      ),
     );
   }
 
   @override
-  List<Object?> get props =>
-      [forceEnabled, refraction, refractionFrostedMultiplier];
+  List<Object?> get props => [forceEnabled, refraction];
 }
 
 /// Represents the settings for a liquid glass effect.
@@ -173,12 +146,8 @@ class FakeGlassConfigs with EquatableMixin {
 class LiquidGlassSettings with EquatableMixin {
   /// Creates a new [LiquidGlassSettings] with the given settings.
   ///
-  /// The [frostIntensity] value should typically be greater than 0.
-  /// Use [frosted] to control whether blur is applied, rather than
-  /// setting frostIntensity to 0 (though 0 is allowed for animations).
-  ///
-  /// Note: If [frostIntensity] is <= 0, [isFrosted] will return false regardless
-  /// of [frosted].
+  /// Set [frostIntensity] > 0 to enable backdrop blur (frosted glass).
+  /// Set [frostIntensity] to 0 for clear glass (no blur).
   const LiquidGlassSettings({
     this.glassColor = const Color.fromARGB(0, 255, 255, 255),
     this.thickness = 20,
@@ -187,7 +156,6 @@ class LiquidGlassSettings with EquatableMixin {
     this.lightIntensity = .5,
     this.ambientStrength = 0,
     this.saturation = 1.5,
-    this.frosted = true,
     this.liquidGlassConfigs = const LiquidGlassConfigs(),
     this.fakeGlassConfigs = const FakeGlassConfigs(),
     this.animationDuration = const Duration(milliseconds: 300),
@@ -208,10 +176,8 @@ class LiquidGlassSettings with EquatableMixin {
     double lightAngle = pi / 4,
     Color glassColor = const Color.fromARGB(0, 255, 255, 255),
     double saturation = 1.5,
-    bool frosted = true,
     FakeGlassConfigs fakeGlassConfigs = const FakeGlassConfigs(
       refraction: 5.0,
-      refractionFrostedMultiplier: 2.0,
     ),
     Duration animationDuration = const Duration(milliseconds: 300),
     Curve animationCurve = Curves.easeInOut,
@@ -223,7 +189,6 @@ class LiquidGlassSettings with EquatableMixin {
           ambientStrength: 0.1,
           saturation: saturation,
           glassColor: glassColor,
-          frosted: frosted,
           liquidGlassConfigs: LiquidGlassConfigs(
             refractiveIndex: 1 + (refraction / 100) * 0.2,
             chromaticAberration: 4 * (dispersion / 100),
@@ -242,14 +207,12 @@ class LiquidGlassSettings with EquatableMixin {
     this.thickness = 15,
     this.frostIntensity = 4,
     this.saturation = 1.2,
-    this.frosted = true,
     this.liquidGlassConfigs = const LiquidGlassConfigs(
       chromaticAberration: 0,
       refractiveIndex: 1.15,
     ),
     this.fakeGlassConfigs = const FakeGlassConfigs(
       refraction: 5.0,
-      refractionFrostedMultiplier: 2.0,
     ),
     this.animationDuration = const Duration(milliseconds: 300),
     this.animationCurve = Curves.easeInOut,
@@ -266,14 +229,12 @@ class LiquidGlassSettings with EquatableMixin {
     this.thickness = 12,
     this.frostIntensity = 3,
     this.saturation = 1.3,
-    this.frosted = true,
     this.liquidGlassConfigs = const LiquidGlassConfigs(
       chromaticAberration: 0.005,
       refractiveIndex: 1.1,
     ),
     this.fakeGlassConfigs = const FakeGlassConfigs(
       refraction: 5.0,
-      refractionFrostedMultiplier: 2.0,
     ),
     this.animationDuration = const Duration(milliseconds: 300),
     this.animationCurve = Curves.easeInOut,
@@ -302,14 +263,12 @@ class LiquidGlassSettings with EquatableMixin {
     lightIntensity: 0,
     ambientStrength: 0,
     saturation: 1,
-    frosted: false,
     liquidGlassConfigs: LiquidGlassConfigs(
       chromaticAberration: 0,
       refractiveIndex: 1,
     ),
     fakeGlassConfigs: FakeGlassConfigs(
       refraction: 0,
-      refractionFrostedMultiplier: 1,
     ),
     // Animation fields use defaults (Duration.zero, Curves.easeInOut)
   );
@@ -335,7 +294,7 @@ class LiquidGlassSettings with EquatableMixin {
   /// The blur intensity of the frosted glass effect.
   ///
   /// Higher values create a more frosted appearance.
-  /// This value should be > 0. Use [frosted] to disable blur instead.
+  /// Set to 0 for clear glass (no blur).
   ///
   /// Defaults to 5.
   final double frostIntensity;
@@ -365,26 +324,10 @@ class LiquidGlassSettings with EquatableMixin {
   /// Defaults to 1.5.
   final double saturation;
 
-  /// Whether glass shapes should apply backdrop blur by default.
+  /// Whether this glass is frosted (blur applied).
   ///
-  /// When true, glass shapes will blur the background behind them (frosted).
-  /// When false, glass shapes will only apply refraction without blur (clear).
-  ///
-  /// Individual [LiquidGlass] widgets can override this setting per-shape
-  /// via their own `frosted` parameter.
-  ///
-  /// Defaults to true.
-  final bool frosted;
-
-  /// The effective frosted state, taking both [frosted] and [frostIntensity]
-  /// into account.
-  ///
-  /// Returns true only when both [frosted] is true AND [frostIntensity] > 0.
-  /// This represents the intended final state.
-  ///
-  /// Note: During animations, [LiquidGlass] uses `frostIntensity > 0` directly
-  /// (ignoring the [frosted] boolean) to ensure smooth blur transitions.
-  bool get isFrosted => frosted && frostIntensity > 0;
+  /// Returns true when [frostIntensity] > 0.
+  bool get isFrosted => frostIntensity > 0;
 
   /// Impeller/shader-specific liquid glass configuration.
   ///
@@ -442,7 +385,6 @@ class LiquidGlassSettings with EquatableMixin {
     double? lightIntensity,
     double? ambientStrength,
     double? saturation,
-    bool? frosted,
     LiquidGlassConfigs? liquidGlassConfigs,
     FakeGlassConfigs? fakeGlassConfigs,
     Duration? animationDuration,
@@ -456,7 +398,6 @@ class LiquidGlassSettings with EquatableMixin {
         lightIntensity: lightIntensity ?? this.lightIntensity,
         ambientStrength: ambientStrength ?? this.ambientStrength,
         saturation: saturation ?? this.saturation,
-        frosted: frosted ?? this.frosted,
         liquidGlassConfigs: liquidGlassConfigs ?? this.liquidGlassConfigs,
         fakeGlassConfigs: fakeGlassConfigs ?? this.fakeGlassConfigs,
         animationDuration: animationDuration ?? this.animationDuration,
@@ -467,8 +408,6 @@ class LiquidGlassSettings with EquatableMixin {
   ///
   /// The [t] parameter represents the interpolation progress from 0.0 to 1.0,
   /// where 0.0 returns [a] and 1.0 returns [b].
-  ///
-  /// Boolean properties ([frosted]) switch at t >= 0.5.
   ///
   /// Note: [animationDuration] and [animationCurve] are not interpolated -
   /// the destination (b) values are always used since they control animation
@@ -491,12 +430,11 @@ class LiquidGlassSettings with EquatableMixin {
     return LiquidGlassSettings(
       glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
       thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
-      frostIntensity: _lerpFrostIntensity(a, b, t),
+      frostIntensity: ui.lerpDouble(a.frostIntensity, b.frostIntensity, t)!,
       lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,
       lightIntensity: ui.lerpDouble(a.lightIntensity, b.lightIntensity, t)!,
       ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
       saturation: ui.lerpDouble(a.saturation, b.saturation, t)!,
-      frosted: t < 0.5 ? a.frosted : b.frosted,
       liquidGlassConfigs: LiquidGlassConfigs.lerp(
         a.liquidGlassConfigs,
         b.liquidGlassConfigs,
@@ -506,8 +444,6 @@ class LiquidGlassSettings with EquatableMixin {
         a.fakeGlassConfigs,
         b.fakeGlassConfigs,
         t,
-        frostedA: a.frosted,
-        frostedB: b.frosted,
       ),
       // Animation fields use destination values (not interpolated)
       animationDuration: b.animationDuration,
@@ -524,7 +460,6 @@ class LiquidGlassSettings with EquatableMixin {
         lightIntensity,
         ambientStrength,
         saturation,
-        frosted,
         liquidGlassConfigs,
         fakeGlassConfigs,
         animationDuration,
@@ -532,68 +467,4 @@ class LiquidGlassSettings with EquatableMixin {
       ];
 }
 
-double _lerpFrostIntensity(
-  LiquidGlassSettings a,
-  LiquidGlassSettings b,
-  double t,
-) {
-  return switch (t) {
-    <= 0 => a.frostIntensity,
-    >= 1 => b.frostIntensity,
-    _ => () {
-        if (a.frosted && !b.frosted) {
-          // transition from frosted to non-frosted
-          return ui.lerpDouble(a.frostIntensity, 0.0, t)!;
-        } else if (!a.frosted && b.frosted) {
-          // transition from non-frosted to frosted
-          return ui.lerpDouble(0.0, b.frostIntensity, t)!;
-        }
-        // transition between frosted and non-frosted
-        final start = a.frostIntensity;
-        final end = b.frostIntensity;
-        return ui.lerpDouble(start, end, t)!;
-      }(),
-  };
-}
 
-double _lerpRefractionFrostedMultiplier(
-  FakeGlassConfigs a,
-  FakeGlassConfigs b,
-  double t, {
-  bool? frostedA,
-  bool? frostedB,
-}) {
-  // If frosted states not provided, do simple lerp
-  if (frostedA == null || frostedB == null) {
-    return ui.lerpDouble(
-      a.refractionFrostedMultiplier,
-      b.refractionFrostedMultiplier,
-      t,
-    )!;
-  }
-
-  // Both non-frosted: multiplier not needed (use neutral 1.0)
-  if (!frostedA && !frostedB) {
-    return 1.0;
-  }
-
-  return switch (t) {
-    <= 0 => frostedA ? a.refractionFrostedMultiplier : 1.0,
-    >= 1 => frostedB ? b.refractionFrostedMultiplier : 1.0,
-    _ => () {
-        if (frostedA && !frostedB) {
-          // frosted -> non-frosted: lerp to 1.0 (neutral)
-          return ui.lerpDouble(a.refractionFrostedMultiplier, 1.0, t)!;
-        } else if (!frostedA && frostedB) {
-          // non-frosted -> frosted: lerp from 1.0 (neutral)
-          return ui.lerpDouble(1.0, b.refractionFrostedMultiplier, t)!;
-        }
-        // both frosted: normal lerp between multipliers
-        return ui.lerpDouble(
-          a.refractionFrostedMultiplier,
-          b.refractionFrostedMultiplier,
-          t,
-        )!;
-      }(),
-  };
-}

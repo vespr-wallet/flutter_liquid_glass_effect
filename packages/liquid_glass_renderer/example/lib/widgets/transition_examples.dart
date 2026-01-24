@@ -839,8 +839,7 @@ class _ManyIndividualLayersExampleState
                                 ),
                                 settings: LiquidGlassSettings(
                                   thickness: 12,
-                                  frostIntensity: 5,
-                                  frosted: widget.frosted,
+                                  frostIntensity: widget.frosted ? 5 : 0,
                                   lightIntensity: 0.4,
                                   glassColor: const Color.fromARGB(
                                     15,
@@ -1014,8 +1013,7 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                 LiquidGlassLayer(
                   settings: LiquidGlassSettings(
                     thickness: 12,
-                    frostIntensity: 5,
-                    frosted: widget.frosted,
+                    frostIntensity: widget.frosted ? 5 : 0,
                     lightIntensity: 0.4,
                     glassColor: const Color.fromARGB(15, 255, 255, 255),
                     fakeGlassConfigs: FakeGlassConfigs(
@@ -1040,7 +1038,6 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                                     shape: const LiquidRoundedSuperellipse(
                                       borderRadius: 12,
                                     ),
-                                    frosted: widget.frosted,
                                     child: GlassGlow(
                                       child: SizedBox(
                                         width: _itemSize,
@@ -1136,11 +1133,10 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample> {
   // Glass state: full glass effect
   LiquidGlassSettings get _glassSettings => LiquidGlassSettings(
         thickness: 20,
-        frostIntensity: 8,
+        frostIntensity: widget.frosted ? 8 : 0,
         lightIntensity: 0.7,
         saturation: 1.5,
         glassColor: const Color.fromARGB(25, 255, 255, 255),
-        frosted: widget.frosted,
         animationDuration: const Duration(milliseconds: 600),
         fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
       );
@@ -1165,7 +1161,6 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample> {
         child: LiquidGlass.withOwnLayer(
           shape: const LiquidRoundedSuperellipse(borderRadius: 24),
           settings: settings,
-          frosted: widget.frosted,
           child: const GlassGlow(child: _ExampleContent(text: 'Flat ↔ Glass')),
         ),
       ),
@@ -1198,11 +1193,10 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample> {
   // Subtle glass
   LiquidGlassSettings get _subtleSettings => LiquidGlassSettings(
         thickness: 8,
-        frostIntensity: 3,
+        frostIntensity: widget.frosted ? 3 : 0,
         lightIntensity: 0.3,
         saturation: 1.2,
         glassColor: const Color.fromARGB(15, 200, 220, 255),
-        frosted: widget.frosted,
         animationDuration: const Duration(milliseconds: 700),
         fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
       );
@@ -1210,11 +1204,10 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample> {
   // Intense glass
   LiquidGlassSettings get _intenseSettings => LiquidGlassSettings(
         thickness: 35,
-        frostIntensity: 15,
+        frostIntensity: widget.frosted ? 15 : 0,
         lightIntensity: 1.0,
         saturation: 1.8,
         glassColor: const Color.fromARGB(50, 255, 200, 150),
-        frosted: widget.frosted,
         animationDuration: const Duration(milliseconds: 700),
         fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
       );
@@ -1236,7 +1229,6 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample> {
         child: LiquidGlass.withOwnLayer(
           shape: const LiquidRoundedSuperellipse(borderRadius: 24),
           settings: settings,
-          frosted: widget.frosted,
           child: const GlassGlow(child: _ExampleContent(text: 'Intensity')),
         ),
       ),
@@ -1291,14 +1283,12 @@ class _BorderRadiusAnimationExampleState
           shape: shape,
           settings: LiquidGlassSettings(
             thickness: 20,
-            frostIntensity: 8,
+            frostIntensity: widget.frosted ? 8 : 0,
             lightIntensity: 0.6,
             glassColor: const Color.fromARGB(20, 255, 255, 255),
-            frosted: widget.frosted,
             animationDuration: const Duration(milliseconds: 500),
             fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
           ),
-          frosted: widget.frosted,
           child: const GlassGlow(
             child: _ExampleContent(text: 'Border Radius'),
           ),
@@ -1340,10 +1330,9 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample> {
   static const _collapsedShape = LiquidRoundedSuperellipse(borderRadius: 12);
   LiquidGlassSettings get _collapsedSettings => LiquidGlassSettings(
         thickness: 10,
-        frostIntensity: 4,
+        frostIntensity: widget.frosted ? 4 : 0,
         lightIntensity: 0.3,
         glassColor: const Color.fromARGB(15, 200, 200, 255),
-        frosted: widget.frosted,
         animationDuration: _animationDuration,
         fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
       );
@@ -1352,11 +1341,10 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample> {
   static const _expandedShape = LiquidRoundedSuperellipse(borderRadius: 48);
   LiquidGlassSettings get _expandedSettings => LiquidGlassSettings(
         thickness: 30,
-        frostIntensity: 12,
+        frostIntensity: widget.frosted ? 12 : 0,
         lightIntensity: 0.9,
         saturation: 1.6,
         glassColor: const Color.fromARGB(40, 255, 220, 150),
-        frosted: widget.frosted,
         animationDuration: _animationDuration,
         fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
       );
@@ -1390,7 +1378,6 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample> {
             child: LiquidGlass.withOwnLayer(
               shape: shape,
               settings: settings,
-              frosted: widget.frosted,
               child: const GlassGlow(
                 child: Center(
                   child: Text(
@@ -1585,14 +1572,13 @@ class _BouncingContainerState extends State<_BouncingContainer> {
                     shape: const LiquidRoundedSuperellipse(borderRadius: 16),
                     settings: LiquidGlassSettings(
                       thickness: 15,
-                      frostIntensity: 6,
+                      frostIntensity: widget.frosted ? 6 : 0,
                       lightIntensity: 0.5,
                       glassColor: const Color.fromARGB(20, 255, 255, 255),
                       fakeGlassConfigs: FakeGlassConfigs(
                         forceEnabled: widget.fake,
                       ),
                     ),
-                    frosted: widget.frosted,
                     child: SizedBox(
                       width: widget.glassWidth,
                       height: widget.glassHeight,

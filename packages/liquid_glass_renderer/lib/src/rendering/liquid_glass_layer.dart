@@ -265,10 +265,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ImageFilter? _buildFakeGlassFilter({
     required bool frosted,
   }) {
-    final baseRefraction = settings.fakeGlassConfigs.refraction;
-    final refraction = frosted
-        ? baseRefraction * settings.fakeGlassConfigs.refractionFrostedMultiplier
-        : baseRefraction;
+    // Always apply the multiplier since it's lerped during frosted state
+    // transitions (lerps to/from 1.0), ensuring smooth refraction changes.
+    final refraction = settings.fakeGlassConfigs.refraction *
+        settings.fakeGlassConfigs.refractionFrostedMultiplier;
 
     // Use layer center for the refraction effect to ensure consistent
     // positioning regardless of which shapes are enabled

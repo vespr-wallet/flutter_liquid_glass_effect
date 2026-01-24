@@ -119,24 +119,42 @@ class _LiquidGlassState extends State<LiquidGlass>
   AnimationController? _controller;
   CurvedAnimation? _curvedAnimation;
 
-  // Only set during active animation
+  // Animation start/end values (only set during active animation)
   LiquidShape? _fromShape;
   LiquidGlassSettings? _fromSettings;
+  LiquidGlassSettings? _toSettings;
 
   // Current animated values (null when not animating)
   LiquidShape? _animatedShape;
   LiquidGlassSettings? _animatedSettings;
 
-  // Cached context settings for animation when ownLayerSettings is null
+  // Cached context settings for detecting changes
   LiquidGlassSettings? _contextSettings;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Cache context settings for use in didUpdateWidget
-    // Only relevant when ownLayerSettings is null
-    if (widget.ownLayerSettings == null) {
-      _contextSettings = LiquidGlassSettings.of(context);
+
+    // Only handle context settings for shared layers
+    if (widget.ownLayerSettings != null) return;
+
+    final newContextSettings = LiquidGlassSettings.of(context);
+    final oldContextSettings = _contextSettings;
+    _contextSettings = newContextSettings;
+
+    // Detect context settings changes and animate
+    final settingsChanged =
+        oldContextSettings != null && newContextSettings != oldContextSettings;
+    if (settingsChanged) {
+      final duration = newContextSettings.animationDuration;
+      if (duration == Duration.zero) {
+        _clearAnimationState();
+        return;
+      }
+
+      _fromSettings = _animatedSettings ?? oldContextSettings;
+      _toSettings = newContextSettings;
+      _startAnimation(duration, newContextSettings.animationCurve);
     }
   }
 
@@ -145,28 +163,27 @@ class _LiquidGlassState extends State<LiquidGlass>
     super.didUpdateWidget(oldWidget);
 
     final newSettings = widget.ownLayerSettings;
-    // Get duration from ownLayerSettings if available, otherwise from context
-    final effectiveSettings = newSettings ?? _contextSettings;
-    final duration = effectiveSettings?.animationDuration ?? Duration.zero;
+    final oldSettings = oldWidget.ownLayerSettings;
 
     final shapeChanged = widget.shape != oldWidget.shape;
-    final settingsChanged = newSettings != oldWidget.ownLayerSettings;
+    final settingsChanged = newSettings != oldSettings;
 
     if (!shapeChanged && !settingsChanged) return;
 
+    // For shared layers, settings changes are handled in didChangeDependencies
+    final effectiveSettings = newSettings ?? _contextSettings;
+    final duration = effectiveSettings?.animationDuration ?? Duration.zero;
+
     if (duration == Duration.zero) {
-      // No animation - clear any animation state
       _clearAnimationState();
       return;
     }
 
-    // Start animation from current visual state (not old widget state)
-    // This handles interrupting animations smoothly
     _fromShape = _animatedShape ?? oldWidget.shape;
-    // Only animate settings if we have ownLayerSettings
-    _fromSettings = newSettings != null
-        ? (_animatedSettings ?? oldWidget.ownLayerSettings)
-        : null;
+    if (settingsChanged) {
+      _fromSettings = _animatedSettings ?? oldSettings;
+      _toSettings = newSettings;
+    }
 
     _startAnimation(
       duration,
@@ -198,9 +215,9 @@ class _LiquidGlassState extends State<LiquidGlass>
 
     // Compute interpolated values
     _animatedShape = LiquidShape.lerp(_fromShape, widget.shape, t);
-    _animatedSettings = _fromSettings != null && widget.ownLayerSettings != null
-        ? LiquidGlassSettings.lerp(_fromSettings!, widget.ownLayerSettings!, t)
-        : widget.ownLayerSettings;
+    _animatedSettings = _fromSettings != null && _toSettings != null
+        ? LiquidGlassSettings.lerp(_fromSettings!, _toSettings!, t)
+        : _toSettings;
 
     setState(() {}); // Minimal rebuild
   }
@@ -215,6 +232,7 @@ class _LiquidGlassState extends State<LiquidGlass>
   void _clearAnimationState() {
     _fromShape = null;
     _fromSettings = null;
+    _toSettings = null;
     _animatedShape = null;
     _animatedSettings = null;
   }
@@ -251,8 +269,17 @@ class _LiquidGlassState extends State<LiquidGlass>
     LiquidGlassSettings? ownSettings,
   ) {
     final settings = ownSettings ?? LiquidGlassSettings.of(context);
-    // Resolve frosted: use widget value if provided, otherwise use settings
-    final resolvedFrosted = widget.frosted ?? settings.isFrosted;
+    // During animation, derive frosted state from lerped frostIntensity
+    // to ensure smooth blur transitions. After animation ends, use the
+    // explicit frosted setting to respect the intended final state.
+    final bool resolvedFrosted;
+    if (_animatedSettings != null) {
+      // Animation in progress: use frostIntensity > 0 for smooth transition
+      resolvedFrosted = _animatedSettings!.frostIntensity > 0;
+    } else {
+      // No animation: use explicit frosted setting
+      resolvedFrosted = widget.frosted ?? settings.frosted;
+    }
 
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),

@@ -133,19 +133,27 @@ class FakeGlassConfigs with EquatableMixin {
   /// Linearly interpolates between two [FakeGlassConfigs].
   ///
   /// Note: [forceEnabled] switches at t >= 0.5 (boolean lerp).
+  ///
+  /// When [frostedA] and [frostedB] are provided, [refractionFrostedMultiplier]
+  /// is lerped from/to 1.0 (neutral) during frosted state transitions to avoid
+  /// visual jumps.
   static FakeGlassConfigs lerp(
     FakeGlassConfigs a,
     FakeGlassConfigs b,
-    double t,
-  ) {
+    double t, {
+    bool? frostedA,
+    bool? frostedB,
+  }) {
     return FakeGlassConfigs(
       forceEnabled: t < 0.5 ? a.forceEnabled : b.forceEnabled,
       refraction: ui.lerpDouble(a.refraction, b.refraction, t)!,
-      refractionFrostedMultiplier: ui.lerpDouble(
-        a.refractionFrostedMultiplier,
-        b.refractionFrostedMultiplier,
+      refractionFrostedMultiplier: _lerpRefractionFrostedMultiplier(
+        a,
+        b,
         t,
-      )!,
+        frostedA: frostedA,
+        frostedB: frostedB,
+      ),
     );
   }
 
@@ -368,9 +376,14 @@ class LiquidGlassSettings with EquatableMixin {
   /// Defaults to true.
   final bool frosted;
 
-  /// The effective frosted state, taking [frostIntensity] into account.
+  /// The effective frosted state, taking both [frosted] and [frostIntensity]
+  /// into account.
   ///
-  /// Returns false if [frostIntensity] is <= 0, regardless of [frosted].
+  /// Returns true only when both [frosted] is true AND [frostIntensity] > 0.
+  /// This represents the intended final state.
+  ///
+  /// Note: During animations, [LiquidGlass] uses `frostIntensity > 0` directly
+  /// (ignoring the [frosted] boolean) to ensure smooth blur transitions.
   bool get isFrosted => frosted && frostIntensity > 0;
 
   /// Impeller/shader-specific liquid glass configuration.
@@ -478,23 +491,7 @@ class LiquidGlassSettings with EquatableMixin {
     return LiquidGlassSettings(
       glassColor: Color.lerp(a.glassColor, b.glassColor, t)!,
       thickness: ui.lerpDouble(a.thickness, b.thickness, t)!,
-      frostIntensity: switch (t) {
-        <= 0 => a.frostIntensity,
-        >= 1 => b.frostIntensity,
-        _ => () {
-            if (a.frosted && !b.frosted) {
-              // transition from frosted to non-frosted
-              return ui.lerpDouble(a.frostIntensity, 0.0, t)!;
-            } else if (!a.frosted && b.frosted) {
-              // transition from non-frosted to frosted
-              return ui.lerpDouble(0.0, b.frostIntensity, t)!;
-            }
-            // transition between frosted and non-frosted
-            final start = a.frostIntensity;
-            final end = b.frostIntensity;
-            return ui.lerpDouble(start, end, t)!;
-          }(),
-      },
+      frostIntensity: _lerpFrostIntensity(a, b, t),
       lightAngle: ui.lerpDouble(a.lightAngle, b.lightAngle, t)!,
       lightIntensity: ui.lerpDouble(a.lightIntensity, b.lightIntensity, t)!,
       ambientStrength: ui.lerpDouble(a.ambientStrength, b.ambientStrength, t)!,
@@ -509,6 +506,8 @@ class LiquidGlassSettings with EquatableMixin {
         a.fakeGlassConfigs,
         b.fakeGlassConfigs,
         t,
+        frostedA: a.frosted,
+        frostedB: b.frosted,
       ),
       // Animation fields use destination values (not interpolated)
       animationDuration: b.animationDuration,
@@ -531,4 +530,70 @@ class LiquidGlassSettings with EquatableMixin {
         animationDuration,
         animationCurve,
       ];
+}
+
+double _lerpFrostIntensity(
+  LiquidGlassSettings a,
+  LiquidGlassSettings b,
+  double t,
+) {
+  return switch (t) {
+    <= 0 => a.frostIntensity,
+    >= 1 => b.frostIntensity,
+    _ => () {
+        if (a.frosted && !b.frosted) {
+          // transition from frosted to non-frosted
+          return ui.lerpDouble(a.frostIntensity, 0.0, t)!;
+        } else if (!a.frosted && b.frosted) {
+          // transition from non-frosted to frosted
+          return ui.lerpDouble(0.0, b.frostIntensity, t)!;
+        }
+        // transition between frosted and non-frosted
+        final start = a.frostIntensity;
+        final end = b.frostIntensity;
+        return ui.lerpDouble(start, end, t)!;
+      }(),
+  };
+}
+
+double _lerpRefractionFrostedMultiplier(
+  FakeGlassConfigs a,
+  FakeGlassConfigs b,
+  double t, {
+  bool? frostedA,
+  bool? frostedB,
+}) {
+  // If frosted states not provided, do simple lerp
+  if (frostedA == null || frostedB == null) {
+    return ui.lerpDouble(
+      a.refractionFrostedMultiplier,
+      b.refractionFrostedMultiplier,
+      t,
+    )!;
+  }
+
+  // Both non-frosted: multiplier not needed (use neutral 1.0)
+  if (!frostedA && !frostedB) {
+    return 1.0;
+  }
+
+  return switch (t) {
+    <= 0 => frostedA ? a.refractionFrostedMultiplier : 1.0,
+    >= 1 => frostedB ? b.refractionFrostedMultiplier : 1.0,
+    _ => () {
+        if (frostedA && !frostedB) {
+          // frosted -> non-frosted: lerp to 1.0 (neutral)
+          return ui.lerpDouble(a.refractionFrostedMultiplier, 1.0, t)!;
+        } else if (!frostedA && frostedB) {
+          // non-frosted -> frosted: lerp from 1.0 (neutral)
+          return ui.lerpDouble(1.0, b.refractionFrostedMultiplier, t)!;
+        }
+        // both frosted: normal lerp between multipliers
+        return ui.lerpDouble(
+          a.refractionFrostedMultiplier,
+          b.refractionFrostedMultiplier,
+          t,
+        )!;
+      }(),
+  };
 }

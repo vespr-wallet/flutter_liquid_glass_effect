@@ -251,27 +251,28 @@ class LiquidGlassSettings with EquatableMixin {
   /// ```dart
   /// // Animate from flat to glass
   /// final settings = LiquidGlassSettings.lerp(
-  ///   LiquidGlassSettings.flat,
-  ///   LiquidGlassSettings(thickness: 20, frostIntensity: 8),
+  ///   const LiquidGlassSettings.flat(),
+  ///   const LiquidGlassSettings(thickness: 20, frostIntensity: 8),
   ///   animationValue,
   /// );
   /// ```
-  static const flat = LiquidGlassSettings(
-    thickness: 0,
-    frostIntensity: 0,
-    lightAngle: 0,
-    lightIntensity: 0,
-    ambientStrength: 0,
-    saturation: 1,
-    liquidGlassConfigs: LiquidGlassConfigs(
-      chromaticAberration: 0,
-      refractiveIndex: 1,
-    ),
-    fakeGlassConfigs: FakeGlassConfigs(
-      refraction: 0,
-    ),
-    // Animation fields use defaults (Duration.zero, Curves.easeInOut)
-  );
+  const LiquidGlassSettings.flat({
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.animationCurve = Curves.easeInOut,
+  })  : glassColor = const Color.fromARGB(0, 255, 255, 255),
+        thickness = 0,
+        frostIntensity = 0,
+        lightAngle = 0,
+        lightIntensity = 0,
+        ambientStrength = 0,
+        saturation = 1,
+        liquidGlassConfigs = const LiquidGlassConfigs(
+          chromaticAberration: 0,
+          refractiveIndex: 1,
+        ),
+        fakeGlassConfigs = const FakeGlassConfigs(
+          refraction: 0,
+        );
 
   /// Retrieves the nearest [LiquidGlassSettings] from the widget tree.
   ///
@@ -319,7 +320,8 @@ class LiquidGlassSettings with EquatableMixin {
   /// 1.0 means no change, values < 1.0 desaturate the background,
   /// values > 1.0 increase saturation.
   ///
-  /// This setting is used by both liquid glass (Impeller) and fake glass (Skia).
+  /// This setting is used by both liquid glass (Impeller) and fake glass
+  /// (Skia).
   ///
   /// Defaults to 1.5.
   final double saturation;
@@ -417,8 +419,8 @@ class LiquidGlassSettings with EquatableMixin {
   /// ```dart
   /// // Animate from flat to glass
   /// final settings = LiquidGlassSettings.lerp(
-  ///   LiquidGlassSettings.flat(),
-  ///   LiquidGlassSettings(thickness: 20, frostIntensity: 8),
+  ///   const LiquidGlassSettings.flat(),
+  ///   const LiquidGlassSettings(thickness: 20, frostIntensity: 8),
   ///   animationValue,
   /// );
   /// ```
@@ -466,5 +468,3 @@ class LiquidGlassSettings with EquatableMixin {
         animationCurve,
       ];
 }
-
-

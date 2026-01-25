@@ -79,10 +79,17 @@ class LiquidGlass extends StatefulWidget {
   /// {@endtemplate}
   final LiquidShape shape;
 
-  /// Whether this glass should be rendered "inside" of the glass, or on top.
+  /// Controls whether the [child] is rendered behind or on top of the glass
+  /// effect.
   ///
-  /// If it is rendered inside, the color tint
-  /// of the glass will affect the child, and it will also be refracted.
+  /// When `false` (the default), the child renders **on top** of the glass
+  /// surface - ideal for UI elements like text or icons that should appear
+  /// crisp and unaffected by the glass effect.
+  ///
+  /// When `true`, the child renders **behind** the glass surface, meaning
+  /// it will be affected by the glass tint, refraction, and blur effects -
+  /// useful for content that should appear to be "inside" or "behind" the
+  /// glass.
   ///
   /// Defaults to `false`.
   final bool glassContainsChild;

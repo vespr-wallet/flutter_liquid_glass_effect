@@ -68,7 +68,8 @@ class LiquidStretch extends StatelessWidget {
     this.resistance = .08,
     this.hitTestBehavior = HitTestBehavior.opaque,
     super.key,
-  }) : assert(interactionScale > 0, 'interactionScale must be > 0');
+  })  : assert(interactionScale > 0, 'interactionScale must be > 0'),
+        assert(resistance >= 0, 'resistance must be >= 0');
 
   /// The scale factor to apply when the user is interacting with the widget.
   ///

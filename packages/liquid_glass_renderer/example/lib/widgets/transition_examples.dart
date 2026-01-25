@@ -1121,11 +1121,13 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample> {
   bool _isGlass = true; // Start as glass
 
   // Flat state: transparent container but no glass effects.
-  // Use LiquidGlassSettings.flat for clean flat-to-glass transitions.
-  LiquidGlassSettings get _flatSettings => LiquidGlassSettings.flat.copyWith(
-        animationDuration: const Duration(milliseconds: 600),
+  // Use LiquidGlassSettings.flat() for clean flat-to-glass transitions.
+  LiquidGlassSettings get _flatSettings =>
+      const LiquidGlassSettings.flat(
+        animationDuration: Duration(milliseconds: 600),
+      ).copyWith(
         // Use copyWith on fakeGlassConfigs to preserve refraction: 0 from flat
-        fakeGlassConfigs: LiquidGlassSettings.flat.fakeGlassConfigs.copyWith(
+        fakeGlassConfigs: const FakeGlassConfigs(refraction: 0).copyWith(
           forceEnabled: widget.fake,
         ),
       );

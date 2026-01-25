@@ -40,9 +40,6 @@ const kFakeGlassSpecularBlurDivisor = 5.0;
 /// Divisor for overlay stroke width (higher = thinner)
 const kFakeGlassSpecularOverlayWidthDivisor = 1.9;
 
-/// Multiplier for overlay width divisor when frosted (higher = thinner)
-const kFakeGlassSpecularOverlayFrostedMultiplier = 1.5;
-
 /// Alpha multiplier for blurred overlay (0.0 - 1.0)
 const kFakeGlassSpecularOverlayAlpha = 1.0;
 
@@ -92,13 +89,12 @@ mixin FakeGlassEffectsMixin {
   void paintFakeGlassEffects(
     Canvas canvas,
     Path path,
-    Rect bounds, {
-    required bool frosted,
-  }) {
+    Rect bounds,
+  ) {
     _paintColor(canvas, path);
     _paintDepthGradient(canvas, path, bounds);
     _paintInnerEdgeShadow(canvas, path, bounds);
-    _paintSpecular(canvas, path, bounds, frosted: frosted);
+    _paintSpecular(canvas, path, bounds);
   }
 
   void _paintColor(Canvas canvas, Path path) {
@@ -127,9 +123,8 @@ mixin FakeGlassEffectsMixin {
   void _paintSpecular(
     Canvas canvas,
     Path path,
-    Rect bounds, {
-    required bool frosted,
-  }) {
+    Rect bounds,
+  ) {
     // Expand bounds to a square to make sure the gradient angle will match the
     // light angle correctly. A squashed gradient would change the angle.
     final squareBounds = Rect.fromCircle(
@@ -213,11 +208,8 @@ mixin FakeGlassEffectsMixin {
       ..style = PaintingStyle.stroke
       ..maskFilter = MaskFilter.blur(BlurStyle.normal,
           fakeGlassSettings.thickness / kFakeGlassSpecularBlurDivisor)
-      ..strokeWidth = fakeGlassSettings.thickness /
-          (frosted
-              ? kFakeGlassSpecularOverlayWidthDivisor *
-                  kFakeGlassSpecularOverlayFrostedMultiplier
-              : kFakeGlassSpecularOverlayWidthDivisor)
+      ..strokeWidth =
+          fakeGlassSettings.thickness / kFakeGlassSpecularOverlayWidthDivisor
       ..blendMode = BlendMode.overlay;
     canvas.drawPath(path, overlay);
   }

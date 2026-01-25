@@ -493,8 +493,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
-    // All shapes in a layer share the same frost state based on frostIntensity
-    final isFrosted = settings.frostIntensity > 0;
 
     // Build combined filter and clip path
     final combinedFilter = _buildFakeGlassFilter();
@@ -542,7 +540,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 context.canvas,
                 transformedPath,
                 transformedBounds,
-                frosted: isFrosted,
               );
             }
           },

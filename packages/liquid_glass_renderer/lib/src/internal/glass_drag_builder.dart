@@ -30,9 +30,7 @@ class _GlassDragBuilderState extends State<GlassDragBuilder> {
     return Listener(
       behavior: widget.behavior,
       onPointerDown: (event) => setState(() {
-        setState(() {
-          currentDragOffset = Offset.zero;
-        });
+        currentDragOffset = Offset.zero;
       }),
       onPointerMove: (event) => setState(() {
         currentDragOffset = (currentDragOffset ?? Offset.zero) + event.delta;

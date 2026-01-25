@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-
-// TODO import from experimental once that is done
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -95,8 +93,11 @@ class _SingleTestApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = const LiquidGlassSettings(thickness: 40, frostIntensity: 20);
-    final content = Container(
+    final settings = const LiquidGlassSettings(
+      thickness: 40,
+      frostIntensity: 20,
+    );
+    final content = SizedBox(
       width: 200,
       height: 200,
       child: const Center(
@@ -153,7 +154,7 @@ class _MultiTestApp extends StatelessWidget {
       frostIntensity: 15,
       lightIntensity: 0.5,
       ambientStrength: 0.3,
-      chromaticAberration: 0.02,
+      liquidGlassConfigs: LiquidGlassConfigs(chromaticAberration: 0.02),
     );
 
     final content = Column(

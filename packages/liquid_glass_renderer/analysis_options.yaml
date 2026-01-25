@@ -1,1 +1,8 @@
 include: package:lintervention/analysis_options.yaml
+
+linter:
+  rules:
+    # Explicit default values are intentional - protects against default changes
+    avoid_redundant_argument_values: false
+    # Explicit double literals (5.0 vs 5) for clarity in numeric APIs
+    prefer_int_literals: false

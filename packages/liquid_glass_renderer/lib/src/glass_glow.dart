@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
 
 /// {@template glass_glow}
@@ -87,15 +86,22 @@ class GlassGlowLayer extends StatefulWidget {
   @override
   State<GlassGlowLayer> createState() => GlassGlowLayerState();
 
-  @internal
-  // ignore: public_member_api_docs
+  /// Returns the [GlassGlowLayerState] from the closest [GlassGlowLayer]
+  /// ancestor, or null if none exists.
+  ///
+  /// This is used by [GlassGlow] widgets to send touch updates to their
+  /// parent layer.
   static GlassGlowLayerState? maybeOf(BuildContext context) {
     if (!context.mounted) return null;
     return context.findAncestorStateOfType<GlassGlowLayerState>();
   }
 }
 
-@internal
+/// The state for a [GlassGlowLayer].
+///
+/// This class is public to allow [GlassGlow] widgets to update the glow
+/// effect via [updateTouch] and [removeTouch]. You typically don't need to
+/// interact with this class directly.
 class GlassGlowLayerState extends State<GlassGlowLayer>
     with TickerProviderStateMixin {
   late final _offsetController = MotionController<Offset>(
@@ -131,6 +137,12 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
     super.dispose();
   }
 
+  /// Updates the glow effect position and appearance.
+  ///
+  /// Called by [GlassGlow] when the user touches or drags on the widget.
+  /// The [offset] is the local position within the layer, [radius] is the
+  /// glow radius relative to the layer's shortest side, and [color] is
+  /// the glow color.
   void updateTouch(
     Offset offset, {
     required double radius,
@@ -152,6 +164,10 @@ class GlassGlowLayerState extends State<GlassGlowLayer>
     _offsetController.value = offset;
   }
 
+  /// Removes the active touch and animates the glow out.
+  ///
+  /// Called by [GlassGlow] when the user lifts their finger or the
+  /// touch is cancelled.
   void removeTouch() {
     if (!_dragging) return;
     _radiusController.motion =

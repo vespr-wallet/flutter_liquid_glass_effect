@@ -93,4 +93,13 @@ class GeometryTransformTrackingLayer extends OffsetLayer {
       _lastTransform = currentTransform;
     }
   }
+
+  @override
+  void dispose() {
+    // Clear callbacks to prevent memory leaks
+    onTransformChanged = null;
+    renderObject = null;
+    _lastTransform = null;
+    super.dispose();
+  }
 }

@@ -1,4 +1,4 @@
-# Liquid Glass Renderer Architecture
+# Liquid Glass Plus Architecture
 
 This document explains how the different components and widgets interact to create the liquid glass effect.
 
@@ -203,9 +203,8 @@ lib/assets/shaders/
 ├── liquid_glass_geometry_blended.frag   # Generates displacement texture
 ├── liquid_glass_final_render.frag       # Final composition shader
 ├── sdf.glsl                             # Signed distance functions
-├── shared.glsl                          # Common utilities
 ├── displacement_encoding.glsl           # Displacement encode/decode
-└── render.glsl                          # Rendering utilities
+└── render.glsl                          # Common rendering utilities
 ```
 
 ## Performance Considerations
@@ -333,7 +332,7 @@ LiquidGlassLayer(
 Set `debugPaintLiquidGlassGeometry = true` to visualize geometry textures:
 
 ```dart
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 void main() {
   debugPaintLiquidGlassGeometry = true; // Only works in debug mode

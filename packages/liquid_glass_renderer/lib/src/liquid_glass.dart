@@ -5,12 +5,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus/src/internal/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_plus/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_plus/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_plus/src/shaders.dart';
 import 'package:meta/meta.dart';
 
 /// A liquid glass shape.
@@ -23,8 +22,17 @@ import 'package:meta/meta.dart';
 /// [LiquidGlassLayer] internally.
 /// Be mindful that creating many individual layers can be expensive.
 ///
+/// **Impeller Required:** Liquid glass rendering requires Impeller to be
+/// enabled. On non-Impeller devices (Skia), the effect automatically falls
+/// back to fake glass rendering using standard backdrop filters.
+///
+/// **Implicit Animations:** When [LiquidGlassSettings.animationDuration] is
+/// non-zero (default is 300ms), changes to [shape] and settings will animate
+/// automatically. Set the duration to [Duration.zero] to disable animations
+/// and make changes instant with no animation overhead.
+///
 /// See the [LiquidGlassLayer] documentation for more information.
-class LiquidGlass extends StatelessWidget {
+class LiquidGlass extends StatefulWidget {
   /// Creates a new [LiquidGlass] with the given [child] and [shape].
   ///
   /// This will expect a parent [LiquidGlassLayer] to be present in the widget
@@ -32,12 +40,11 @@ class LiquidGlass extends StatelessWidget {
   const LiquidGlass({
     required this.child,
     required this.shape,
-    this.frosted,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     this.debugLabel,
     super.key,
-  }) : ownLayerConfig = null;
+  }) : ownLayerSettings = null;
 
   /// Creates a new [LiquidGlass] that creates its own [LiquidGlassLayer].
   ///
@@ -46,17 +53,18 @@ class LiquidGlass extends StatelessWidget {
   ///
   /// You should prefer rendering multiple [LiquidGlass] shapes that share the
   /// same settings inside a single [LiquidGlassLayer] for better performance.
+  ///
+  /// The rendering mode (liquid glass vs fake glass) is automatically
+  /// determined based on platform support.
   const LiquidGlass.withOwnLayer({
     required this.child,
     required this.shape,
     LiquidGlassSettings settings = const LiquidGlassSettings(),
-    bool fake = false,
-    this.frosted,
     super.key,
     this.glassContainsChild = false,
     this.clipBehavior = Clip.hardEdge,
     this.debugLabel,
-  }) : ownLayerConfig = (settings, fake);
+  }) : ownLayerSettings = settings;
 
   /// The child of this widget.
   ///
@@ -64,17 +72,24 @@ class LiquidGlass extends StatelessWidget {
   /// on top using [glassContainsChild].
   final Widget child;
 
-  /// {@template liquid_glass_renderer.LiquidGlass.shape}
+  /// {@template liquid_glass_plus.LiquidGlass.shape}
   /// The shape of this glass.
   ///
   /// This is the shape of the glass that will be rendered.
   /// {@endtemplate}
   final LiquidShape shape;
 
-  /// Whether this glass should be rendered "inside" of the glass, or on top.
+  /// Controls whether the [child] is rendered behind or on top of the glass
+  /// effect.
   ///
-  /// If it is rendered inside, the color tint
-  /// of the glass will affect the child, and it will also be refracted.
+  /// When `false` (the default), the child renders **on top** of the glass
+  /// surface - ideal for UI elements like text or icons that should appear
+  /// crisp and unaffected by the glass effect.
+  ///
+  /// When `true`, the child renders **behind** the glass surface, meaning
+  /// it will be affected by the glass tint, refraction, and blur effects -
+  /// useful for content that should appear to be "inside" or "behind" the
+  /// glass.
   ///
   /// Defaults to `false`.
   final bool glassContainsChild;
@@ -84,64 +99,140 @@ class LiquidGlass extends StatelessWidget {
   /// Defaults to [Clip.hardEdge], so [child] will be clipped to the shape.
   final Clip clipBehavior;
 
-  /// Whether this glass shape should apply backdrop blur (frosted).
-  ///
-  /// When true, the background behind this shape will be blurred.
-  /// When false, only refraction is applied (clear glass).
-  ///
-  /// If null, uses the default from [LiquidGlassSettings.frosted].
-  final bool? frosted;
-
   /// The settings for this glass if it is supposed to create its own layer.
-  final (LiquidGlassSettings settings, bool fake)? ownLayerConfig;
+  final LiquidGlassSettings? ownLayerSettings;
 
-  /// Debug label for logging. When set, enables debug output for fake glass mode.
+  /// Debug label for logging. When set, enables debug output
+  /// for fake glass mode.
   final String? debugLabel;
 
   @override
+  State<LiquidGlass> createState() => _LiquidGlassState();
+}
+
+class _LiquidGlassState extends State<LiquidGlass>
+    with SingleTickerProviderStateMixin {
+  // Lazily created, reused across shape animations
+  AnimationController? _controller;
+  CurvedAnimation? _curvedAnimation;
+
+  // Shape animation values
+  LiquidShape? _fromShape;
+  LiquidShape? _animatedShape;
+
+  // Cached settings for animation duration/curve lookup
+  LiquidGlassSettings? _contextSettings;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Track context settings for animation parameters (duration/curve).
+    if (widget.ownLayerSettings == null) {
+      _contextSettings = LiquidGlassSettings.of(context);
+    }
+  }
+
+  @override
+  void didUpdateWidget(LiquidGlass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.shape == oldWidget.shape) return;
+
+    // Get animation params from settings
+    final effectiveSettings = widget.ownLayerSettings ?? _contextSettings;
+    final duration = effectiveSettings?.animationDuration ?? Duration.zero;
+
+    if (duration == Duration.zero) {
+      _clearAnimationState();
+      return;
+    }
+
+    _fromShape = _animatedShape ?? oldWidget.shape;
+    _startAnimation(
+      duration,
+      effectiveSettings?.animationCurve ?? Curves.easeInOut,
+    );
+  }
+
+  void _startAnimation(Duration duration, Curve curve) {
+    _controller ??= AnimationController(vsync: this)
+      ..addListener(_onAnimationTick)
+      ..addStatusListener(_onAnimationStatus);
+
+    if (_controller!.duration != duration) {
+      _controller!.duration = duration;
+    }
+
+    _curvedAnimation?.dispose();
+    _curvedAnimation = CurvedAnimation(parent: _controller!, curve: curve);
+
+    _controller!.forward(from: 0);
+  }
+
+  void _onAnimationTick() {
+    final t = _curvedAnimation?.value ?? _controller!.value;
+    _animatedShape = LiquidShape.lerp(_fromShape, widget.shape, t);
+    setState(() {});
+  }
+
+  void _onAnimationStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) {
+      _clearAnimationState();
+      setState(() {});
+    }
+  }
+
+  void _clearAnimationState() {
+    _controller?.stop();
+    _fromShape = null;
+    _animatedShape = null;
+  }
+
+  @override
+  void dispose() {
+    _curvedAnimation?.dispose();
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // If we have our own layer config, we create our own layer.
-    if (ownLayerConfig case (final settings, final fake)) {
+    final shape = _animatedShape ?? widget.shape;
+
+    // Only create own layer if widget was constructed with ownLayerSettings.
+    // Settings animation is handled by LiquidGlassLayer.
+    if (widget.ownLayerSettings != null) {
       return LiquidGlassLayer(
-        settings: settings,
-        fake: fake,
+        settings: widget.ownLayerSettings!,
         child: Builder(
-          builder: (context) => _buildGlassContent(context, useFake: fake),
+          builder: (context) => _buildGlassContent(context, shape),
         ),
       );
     }
 
-    final useFake = LiquidGlassRenderScope.of(context).useFake;
-
-    return _buildGlassContent(context, useFake: useFake);
+    return _buildGlassContent(context, shape);
   }
 
-  Widget _buildGlassContent(BuildContext context, {required bool useFake}) {
-    final settings = LiquidGlassSettings.of(context);
-    // Resolve frosted: use widget value if provided, otherwise use settings
-    final resolvedFrosted = frosted ?? settings.frosted;
+  Widget _buildGlassContent(BuildContext context, LiquidShape shape) {
+    final effectiveSettings = LiquidGlassSettings.of(context);
 
     final glassChild = ClipPath(
       clipper: ShapeBorderClipper(shape: shape),
-      clipBehavior: clipBehavior,
-      child: Opacity(
-        opacity: settings.visibility.clamp(0, 1),
-        child: GlassGlowLayer(
-          child: child,
-        ),
+      clipBehavior: widget.clipBehavior,
+      child: GlassGlowLayer(
+        child: widget.child,
       ),
     );
 
-    // When useFake or shader not supported, register geometry without shader
-    if (useFake || !ImageFilter.isShaderFilterSupported) {
+    // Use fake glass when forced via settings or when Impeller is not available
+    if (effectiveSettings.shouldUseFakeGlass) {
       return _RawLiquidGlass(
         shader: null,
         renderLink: InheritedGeometryRenderLink.of(context)!,
-        settings: settings,
+        settings: effectiveSettings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
-        glassContainsChild: glassContainsChild,
-        frosted: resolvedFrosted,
+        glassContainsChild: widget.glassContainsChild,
         child: glassChild,
       );
     }
@@ -151,11 +242,10 @@ class LiquidGlass extends StatelessWidget {
       (context, shader, builtChild) => _RawLiquidGlass(
         shader: shader,
         renderLink: InheritedGeometryRenderLink.of(context)!,
-        settings: settings,
+        settings: effectiveSettings,
         devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
         shape: shape,
-        glassContainsChild: glassContainsChild,
-        frosted: resolvedFrosted,
+        glassContainsChild: widget.glassContainsChild,
         child: builtChild,
       ),
       assetKey: ShaderKeys.blendedGeometry,
@@ -173,7 +263,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.devicePixelRatio,
     required this.shape,
     required this.glassContainsChild,
-    required this.frosted,
   });
 
   final FragmentShader? shader;
@@ -182,7 +271,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
   final double devicePixelRatio;
   final LiquidShape shape;
   final bool glassContainsChild;
-  final bool frosted;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -193,7 +281,6 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       devicePixelRatio: devicePixelRatio,
       shape: shape,
       glassContainsChild: glassContainsChild,
-      frosted: frosted,
     );
   }
 
@@ -208,8 +295,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..devicePixelRatio = devicePixelRatio
       ..shape = shape
-      ..glassContainsChild = glassContainsChild
-      ..frosted = frosted;
+      ..glassContainsChild = glassContainsChild;
   }
 }
 
@@ -229,10 +315,8 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     required super.devicePixelRatio,
     required LiquidShape shape,
     required bool glassContainsChild,
-    required bool frosted,
   })  : _shape = shape,
-        _glassContainsChild = glassContainsChild,
-        _frosted = frosted;
+        _glassContainsChild = glassContainsChild;
 
   LiquidShape _shape;
 
@@ -257,17 +341,6 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
   set glassContainsChild(bool value) {
     if (_glassContainsChild == value) return;
     _glassContainsChild = value;
-    markNeedsPaint();
-  }
-
-  bool _frosted;
-
-  /// Whether this shape should apply backdrop blur (frosted glass).
-  bool get frosted => _frosted;
-  set frosted(bool value) {
-    if (_frosted == value) return;
-    _frosted = value;
-    markGeometryNeedsUpdate(force: true);
     markNeedsPaint();
   }
 
@@ -306,9 +379,9 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
     if (shader == null) return;
     shader.setFloatUniforms(initialIndex: 2, (value) {
       value.setFloats([
-        settings.refractiveIndex,
-        settings.effectiveChromaticAberration,
-        settings.effectiveThickness,
+        settings.liquidGlassConfigs.refractiveIndex,
+        settings.liquidGlassConfigs.chromaticAberration,
+        settings.thickness,
         0.0, // blend always 0 for single shapes
       ]);
     });
@@ -348,15 +421,13 @@ class RenderLiquidGlassSingleShape extends RenderLiquidGlassGeometry
       shape: _shape,
       glassContainsChild: _glassContainsChild,
       shapeBounds: bounds,
-      frosted: _frosted,
     );
 
     // Compare with cached geometry to determine if rebuild needed
     final cached = geometry?.shapes.firstOrNull;
     final needsUpdate = cached == null ||
         cached.shapeBounds != bounds ||
-        cached.shape != _shape ||
-        cached.frosted != _frosted;
+        cached.shape != _shape;
 
     return (bounds, [shapeGeometry], needsUpdate);
   }

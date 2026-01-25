@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/logging.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus/src/internal/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_plus/src/logging.dart';
+import 'package:liquid_glass_plus/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 
 /// The state of liquid glass geometry, used to determine if it needs to be
@@ -291,12 +291,12 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     // geometryShader is guaranteed non-null when this method is called
     // (checked in maybeRebuildGeometry)
-    final shader = _geometryShader!;
-    shader.setFloatUniforms((value) {
-      value
-        ..setFloat(width.toDouble())
-        ..setFloat(height.toDouble());
-    });
+    final shader = _geometryShader!
+      ..setFloatUniforms((value) {
+        value
+          ..setFloat(width.toDouble())
+          ..setFloat(height.toDouble());
+      });
 
     updateGeometryShaderShapes(shapes);
 
@@ -485,8 +485,9 @@ extension on LiquidGlassSettings {
   bool requiresGeometryRebuild(LiquidGlassSettings? other) {
     if (other == null) return false;
 
-    return effectiveThickness != other.effectiveThickness ||
-        refractiveIndex != other.refractiveIndex;
+    return thickness != other.thickness ||
+        liquidGlassConfigs.refractiveIndex !=
+            other.liquidGlassConfigs.refractiveIndex;
   }
 }
 
@@ -533,7 +534,6 @@ class ShapeGeometry extends Equatable {
     required this.shape,
     required this.glassContainsChild,
     required this.shapeBounds,
-    required this.frosted,
     this.shapeToGeometry,
   })  : rawCornerRadius = _getRadiusFromGlassShape(shape),
         rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
@@ -560,9 +560,6 @@ class ShapeGeometry extends Equatable {
 
   final bool glassContainsChild;
 
-  /// Whether this shape should apply backdrop blur (frosted glass).
-  final bool frosted;
-
   /// Bounds in geometry-local coordinates (for painting)
   final Rect shapeBounds;
 
@@ -574,6 +571,5 @@ class ShapeGeometry extends Equatable {
         shape,
         glassContainsChild,
         shapeBounds,
-        frosted,
       ];
 }

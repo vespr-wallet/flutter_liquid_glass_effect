@@ -8,7 +8,7 @@ import 'package:meta/meta.dart';
 final String _shadersRoot =
     !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST')
         ? ''
-        : 'packages/liquid_glass_renderer/';
+        : 'packages/liquid_glass_plus/';
 
 @internal
 abstract class ShaderKeys {

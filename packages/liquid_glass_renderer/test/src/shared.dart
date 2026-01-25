@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
 const settingsWithoutLighting = LiquidGlassSettings(
-  chromaticAberration: 0,
   lightIntensity: 0,
-  frostByDefault: false,
+  frostIntensity: 0,
+  liquidGlassConfigs: LiquidGlassConfigs(
+    chromaticAberration: 0,
+  ),
 );
 
 Widget buildWithGridPaper(Widget child) {

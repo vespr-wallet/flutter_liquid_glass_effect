@@ -6,7 +6,7 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 // =============================================================================
 // ENUMS AND GLOBAL STATE
@@ -267,13 +267,13 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'Tests per-layer overhead.',
                         realChildBuilder: (frosted) =>
                             ManyIndividualLayersExample(
-                              fake: false,
                               frosted: frosted,
+                              fake: false,
                             ),
                         fakeChildBuilder: (frosted) =>
                             ManyIndividualLayersExample(
-                              fake: true,
                               frosted: frosted,
+                              fake: true,
                             ),
                       ),
                       const SizedBox(height: 32),
@@ -283,9 +283,9 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'Many glass items share a single LiquidGlassLayer. '
                             'Tests shader complexity with multiple shapes.',
                         realChildBuilder: (frosted) =>
-                            SharedLayerExample(fake: false, frosted: frosted),
+                            SharedLayerExample(frosted: frosted, fake: false),
                         fakeChildBuilder: (frosted) =>
-                            SharedLayerExample(fake: true, frosted: frosted),
+                            SharedLayerExample(frosted: frosted, fake: true),
                       ),
                       const SizedBox(height: 32),
                       _Section(
@@ -294,20 +294,20 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'Glass element bouncing around like a DVD screensaver, '
                             'showcasing refraction and reflection during movement.',
                         realChildBuilder: (frosted) =>
-                            BouncingGlassExample(fake: false, frosted: frosted),
+                            BouncingGlassExample(frosted: frosted, fake: false),
                         fakeChildBuilder: (frosted) =>
-                            BouncingGlassExample(fake: true, frosted: frosted),
+                            BouncingGlassExample(frosted: frosted, fake: true),
                       ),
                       const SizedBox(height: 32),
                       _Section(
                         title: 'Flat to Glass Transition',
                         description:
                             'Transitions from a solid colored container to a glass '
-                            'effect by animating visibility, blur, and thickness.',
+                            'effect by animating blur and thickness.',
                         realChildBuilder: (frosted) =>
-                            FlatToGlassExample(fake: false, frosted: frosted),
+                            FlatToGlassExample(frosted: frosted, fake: false),
                         fakeChildBuilder: (frosted) =>
-                            FlatToGlassExample(fake: true, frosted: frosted),
+                            FlatToGlassExample(frosted: frosted, fake: true),
                       ),
                       const SizedBox(height: 32),
                       _Section(
@@ -316,11 +316,11 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'Animates glass intensity from subtle to prominent by '
                             'changing blur, thickness, and saturation.',
                         realChildBuilder: (frosted) => GlassIntensityExample(
-                          fake: false,
                           frosted: frosted,
+                          fake: false,
                         ),
                         fakeChildBuilder: (frosted) =>
-                            GlassIntensityExample(fake: true, frosted: frosted),
+                            GlassIntensityExample(frosted: frosted, fake: true),
                       ),
                       const SizedBox(height: 32),
                       _Section(
@@ -330,13 +330,13 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'rounded (64) using LiquidShape.lerp.',
                         realChildBuilder: (frosted) =>
                             BorderRadiusAnimationExample(
-                              fake: false,
                               frosted: frosted,
+                              fake: false,
                             ),
                         fakeChildBuilder: (frosted) =>
                             BorderRadiusAnimationExample(
-                              fake: true,
                               frosted: frosted,
+                              fake: true,
                             ),
                       ),
                       const SizedBox(height: 32),
@@ -346,13 +346,13 @@ class _TransitionExamplesPageState extends State<TransitionExamplesPage> {
                             'Combines shape, settings, and size animations together.',
                         realChildBuilder: (frosted) =>
                             CombinedTransitionExample(
-                              fake: false,
                               frosted: frosted,
+                              fake: false,
                             ),
                         fakeChildBuilder: (frosted) =>
                             CombinedTransitionExample(
-                              fake: true,
                               frosted: frosted,
+                              fake: true,
                             ),
                       ),
                     ],
@@ -725,12 +725,11 @@ class _SectionDescription extends StatelessWidget {
 class ManyIndividualLayersExample extends StatefulWidget {
   const ManyIndividualLayersExample({
     super.key,
-    required this.fake,
     required this.frosted,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<ManyIndividualLayersExample> createState() =>
@@ -839,10 +838,8 @@ class _ManyIndividualLayersExampleState
                                   borderRadius: 12,
                                 ),
                                 settings: LiquidGlassSettings(
-                                  visibility: 1,
                                   thickness: 12,
-                                  frostIntensity: 5,
-                                  frostByDefault: widget.frosted,
+                                  frostIntensity: widget.frosted ? 5 : 0,
                                   lightIntensity: 0.4,
                                   glassColor: const Color.fromARGB(
                                     15,
@@ -850,8 +847,10 @@ class _ManyIndividualLayersExampleState
                                     255,
                                     255,
                                   ),
+                                  fakeGlassConfigs: FakeGlassConfigs(
+                                    forceEnabled: widget.fake,
+                                  ),
                                 ),
-                                fake: widget.fake,
                                 child: SizedBox(
                                   width: 50,
                                   height: 50,
@@ -914,12 +913,11 @@ class _ManyIndividualLayersExampleState
 class SharedLayerExample extends StatefulWidget {
   const SharedLayerExample({
     super.key,
-    required this.fake,
     required this.frosted,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<SharedLayerExample> createState() => _SharedLayerExampleState();
@@ -1013,14 +1011,14 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                 ),
                 // Single layer with many glass items
                 LiquidGlassLayer(
-                  fake: widget.fake,
                   settings: LiquidGlassSettings(
-                    visibility: 1,
                     thickness: 12,
-                    frostIntensity: 5,
-                    frostByDefault: widget.frosted,
+                    frostIntensity: widget.frosted ? 5 : 0,
                     lightIntensity: 0.4,
                     glassColor: const Color.fromARGB(15, 255, 255, 255),
+                    fakeGlassConfigs: FakeGlassConfigs(
+                      forceEnabled: widget.fake,
+                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(8),
@@ -1040,7 +1038,6 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
                                     shape: const LiquidRoundedSuperellipse(
                                       borderRadius: 12,
                                     ),
-                                    frosted: widget.frosted,
                                     child: GlassGlow(
                                       child: SizedBox(
                                         width: _itemSize,
@@ -1106,108 +1103,68 @@ class _SharedLayerExampleState extends State<SharedLayerExample> {
 ///
 /// The "flat" state shows a semi-transparent colored container.
 /// The "glass" state shows the full glass effect with blur and lighting.
+/// Uses implicit animations - just change the settings and the widget animates.
 class FlatToGlassExample extends StatefulWidget {
   const FlatToGlassExample({
     super.key,
-    required this.fake,
     this.frosted = true,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<FlatToGlassExample> createState() => _FlatToGlassExampleState();
 }
 
-class _FlatToGlassExampleState extends State<FlatToGlassExample>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
+class _FlatToGlassExampleState extends State<FlatToGlassExample> {
   bool _isGlass = true; // Start as glass
 
-  // Flat state: visible container but no glass effects
-  static const _flatSettings = LiquidGlassSettings(
-    visibility: 1, // Keep visible!
-    thickness: 0, // No glass depth
-    frostByDefault: false, // No blur
-    lightIntensity: 0, // No specular
-    saturation: 1.0, // Normal saturation
-    fakeGlassRefraction: 0, // No refraction for fake glass mode
-    glassColor: Color.fromARGB(0, 0, 0, 0), // Fully transparent
-  );
+  // Flat state: transparent container but no glass effects.
+  // Use LiquidGlassSettings.flat() for clean flat-to-glass transitions.
+  LiquidGlassSettings get _flatSettings =>
+      const LiquidGlassSettings.flat(
+        animationDuration: Duration(milliseconds: 600),
+      ).copyWith(
+        // Use copyWith on fakeGlassConfigs to preserve refraction: 0 from flat
+        fakeGlassConfigs: const FakeGlassConfigs(refraction: 0).copyWith(
+          forceEnabled: widget.fake,
+        ),
+      );
 
   // Glass state: full glass effect
-  static const _glassSettings = LiquidGlassSettings(
-    visibility: 1,
-    thickness: 20,
-    frostIntensity: 8,
-    lightIntensity: 0.7,
-    saturation: 1.5,
-    glassColor: Color.fromARGB(25, 255, 255, 255),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-      value: 1.0, // Start as glass
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  LiquidGlassSettings get _glassSettings => LiquidGlassSettings(
+        thickness: 20,
+        frostIntensity: widget.frosted ? 8 : 0,
+        lightIntensity: 0.7,
+        saturation: 1.5,
+        glassColor: const Color.fromARGB(25, 255, 255, 255),
+        animationDuration: const Duration(milliseconds: 600),
+        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+      );
 
   void _toggle() {
     setState(() {
       _isGlass = !_isGlass;
-      if (_isGlass) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = _isGlass ? _glassSettings : _flatSettings;
+
     return _ExampleContainer(
       onTap: _toggle,
       label: _isGlass
           ? 'Glass state - tap to flatten'
           : 'Flat state - tap for glass',
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          final t = _animation.value;
-          final settings = LiquidGlassSettings.lerp(
-            _flatSettings,
-            _glassSettings,
-            t,
-          );
-          // Disable stretch when flat (t=0), enable when glass (t=1)
-          return LiquidStretch(
-            stretch: t * 0.5, // 0 when flat, 0.5 when glass
-            interactionScale: 1.05, // Always scale on press
-            child: LiquidGlass.withOwnLayer(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 24),
-              settings: widget.frosted
-                  ? settings
-                  : settings.copyWith(frostByDefault: false),
-              fake: widget.fake,
-              frosted: widget.frosted,
-              child: GlassGlow(child: child!),
-            ),
-          );
-        },
-        child: const _ExampleContent(text: 'Flat ↔ Glass'),
+      child: LiquidStretch(
+        interactionScale: 1.05,
+        child: LiquidGlass.withOwnLayer(
+          shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+          settings: settings,
+          child: const GlassGlow(child: _ExampleContent(text: 'Flat ↔ Glass')),
+        ),
       ),
     );
   }
@@ -1218,100 +1175,64 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample>
 // =============================================================================
 
 /// Demonstrates animating glass intensity from subtle to prominent.
+/// Uses implicit animations - just change the settings and the widget animates.
 class GlassIntensityExample extends StatefulWidget {
   const GlassIntensityExample({
     super.key,
-    required this.fake,
     this.frosted = true,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<GlassIntensityExample> createState() => _GlassIntensityExampleState();
 }
 
-class _GlassIntensityExampleState extends State<GlassIntensityExample>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
+class _GlassIntensityExampleState extends State<GlassIntensityExample> {
   bool _intense = false;
 
   // Subtle glass
-  static const _subtleSettings = LiquidGlassSettings(
-    visibility: 1,
-    thickness: 8,
-    frostIntensity: 3,
-    lightIntensity: 0.3,
-    saturation: 1.2,
-    glassColor: Color.fromARGB(15, 200, 220, 255),
-  );
+  LiquidGlassSettings get _subtleSettings => LiquidGlassSettings(
+        thickness: 8,
+        frostIntensity: widget.frosted ? 3 : 0,
+        lightIntensity: 0.3,
+        saturation: 1.2,
+        glassColor: const Color.fromARGB(15, 200, 220, 255),
+        animationDuration: const Duration(milliseconds: 700),
+        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+      );
 
   // Intense glass
-  static const _intenseSettings = LiquidGlassSettings(
-    visibility: 1,
-    thickness: 35,
-    frostIntensity: 15,
-    lightIntensity: 1.0,
-    saturation: 1.8,
-    glassColor: Color.fromARGB(50, 255, 200, 150),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  LiquidGlassSettings get _intenseSettings => LiquidGlassSettings(
+        thickness: 35,
+        frostIntensity: widget.frosted ? 15 : 0,
+        lightIntensity: 1.0,
+        saturation: 1.8,
+        glassColor: const Color.fromARGB(50, 255, 200, 150),
+        animationDuration: const Duration(milliseconds: 700),
+        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+      );
 
   void _toggle() {
     setState(() {
       _intense = !_intense;
-      if (_intense) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final settings = _intense ? _intenseSettings : _subtleSettings;
+
     return _ExampleContainer(
       onTap: _toggle,
       label: _intense ? 'Intense - tap for subtle' : 'Subtle - tap for intense',
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          final settings = LiquidGlassSettings.lerp(
-            _subtleSettings,
-            _intenseSettings,
-            _animation.value,
-          );
-          return LiquidStretch(
-            child: LiquidGlass.withOwnLayer(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 24),
-              settings: widget.frosted
-                  ? settings
-                  : settings.copyWith(frostByDefault: false),
-              fake: widget.fake,
-              frosted: widget.frosted,
-              child: GlassGlow(child: child!),
-            ),
-          );
-        },
-        child: const _ExampleContent(text: 'Intensity'),
+      child: LiquidStretch(
+        child: LiquidGlass.withOwnLayer(
+          shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+          settings: settings,
+          child: const GlassGlow(child: _ExampleContent(text: 'Intensity')),
+        ),
       ),
     );
   }
@@ -1322,17 +1243,15 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample>
 // =============================================================================
 
 /// Demonstrates animating the shape's border radius.
-///
-/// Uses [LiquidShape.lerp] for same-type interpolation of border radius.
+/// Uses implicit animations - just change the shape and the widget animates.
 class BorderRadiusAnimationExample extends StatefulWidget {
   const BorderRadiusAnimationExample({
     super.key,
-    required this.fake,
     this.frosted = true,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<BorderRadiusAnimationExample> createState() =>
@@ -1340,71 +1259,42 @@ class BorderRadiusAnimationExample extends StatefulWidget {
 }
 
 class _BorderRadiusAnimationExampleState
-    extends State<BorderRadiusAnimationExample>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
-
+    extends State<BorderRadiusAnimationExample> {
   bool _isRounded = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _sharpShape = LiquidRoundedSuperellipse(borderRadius: 8);
+  static const _roundedShape = LiquidRoundedSuperellipse(borderRadius: 64);
 
   void _toggle() {
     setState(() {
       _isRounded = !_isRounded;
-      if (_isRounded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    const shapeA = LiquidRoundedSuperellipse(borderRadius: 8);
-    const shapeB = LiquidRoundedSuperellipse(borderRadius: 64);
+    final shape = _isRounded ? _roundedShape : _sharpShape;
 
     return _ExampleContainer(
       onTap: _toggle,
       label: _isRounded
           ? 'Rounded (64) - tap to sharpen'
           : 'Sharp (8) - tap to round',
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          final shape = LiquidShape.lerp(shapeA, shapeB, _animation.value)!;
-          return LiquidStretch(
-            child: LiquidGlass.withOwnLayer(
-              shape: shape,
-              settings: LiquidGlassSettings(
-                visibility: 1,
-                thickness: 20,
-                frostIntensity: 8,
-                lightIntensity: 0.6,
-                glassColor: const Color.fromARGB(20, 255, 255, 255),
-              ),
-              fake: widget.fake,
-              frosted: widget.frosted,
-              child: GlassGlow(child: child!),
-            ),
-          );
-        },
-        child: const _ExampleContent(text: 'Border Radius'),
+      child: LiquidStretch(
+        child: LiquidGlass.withOwnLayer(
+          shape: shape,
+          settings: LiquidGlassSettings(
+            thickness: 20,
+            frostIntensity: widget.frosted ? 8 : 0,
+            lightIntensity: 0.6,
+            glassColor: const Color.fromARGB(20, 255, 255, 255),
+            animationDuration: const Duration(milliseconds: 500),
+            fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+          ),
+          child: const GlassGlow(
+            child: _ExampleContent(text: 'Border Radius'),
+          ),
+        ),
       ),
     );
   }
@@ -1418,118 +1308,90 @@ class _BorderRadiusAnimationExampleState
 ///
 /// This example animates both the shape (borderRadius) and settings
 /// (visibility, blur, etc.) simultaneously for a complete transformation.
+/// Uses implicit animations for shape/settings, AnimatedContainer for size.
 class CombinedTransitionExample extends StatefulWidget {
   const CombinedTransitionExample({
     super.key,
-    required this.fake,
     this.frosted = true,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<CombinedTransitionExample> createState() =>
       _CombinedTransitionExampleState();
 }
 
-class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-  late final Animation<double> _animation;
+class _CombinedTransitionExampleState extends State<CombinedTransitionExample> {
+  static const _animationDuration = Duration(milliseconds: 700);
 
   bool _expanded = false;
 
   // State A: Small, sharp corners, subtle glass
-  static const _shapeA = LiquidRoundedSuperellipse(borderRadius: 12);
-  static const _settingsA = LiquidGlassSettings(
-    visibility: 1,
-    thickness: 10,
-    frostIntensity: 4,
-    lightIntensity: 0.3,
-    glassColor: Color.fromARGB(15, 200, 200, 255),
-  );
+  static const _collapsedShape = LiquidRoundedSuperellipse(borderRadius: 12);
+  LiquidGlassSettings get _collapsedSettings => LiquidGlassSettings(
+        thickness: 10,
+        frostIntensity: widget.frosted ? 4 : 0,
+        lightIntensity: 0.3,
+        glassColor: const Color.fromARGB(15, 200, 200, 255),
+        animationDuration: _animationDuration,
+        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+      );
 
   // State B: Large, rounded corners, prominent glass
-  static const _shapeB = LiquidRoundedSuperellipse(borderRadius: 48);
-  static const _settingsB = LiquidGlassSettings(
-    visibility: 1,
-    thickness: 30,
-    frostIntensity: 12,
-    lightIntensity: 0.9,
-    saturation: 1.6,
-    glassColor: Color.fromARGB(40, 255, 220, 150),
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 700),
-      vsync: this,
-    );
-    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  static const _expandedShape = LiquidRoundedSuperellipse(borderRadius: 48);
+  LiquidGlassSettings get _expandedSettings => LiquidGlassSettings(
+        thickness: 30,
+        frostIntensity: widget.frosted ? 12 : 0,
+        lightIntensity: 0.9,
+        saturation: 1.6,
+        glassColor: const Color.fromARGB(40, 255, 220, 150),
+        animationDuration: _animationDuration,
+        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+      );
 
   void _toggle() {
     setState(() {
       _expanded = !_expanded;
-      if (_expanded) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    final shape = _expanded ? _expandedShape : _collapsedShape;
+    final settings = _expanded ? _expandedSettings : _collapsedSettings;
+    final size = _expanded ? const Size(200, 140) : const Size(120, 80);
+
     return _ExampleContainer(
       onTap: _toggle,
       label: _expanded
           ? 'Expanded - tap to collapse'
           : 'Collapsed - tap to expand',
-      child: AnimatedBuilder(
-        animation: _animation,
-        builder: (context, child) {
-          final t = _animation.value;
-          final shape = LiquidShape.lerp(_shapeA, _shapeB, t)!;
-          final settings = LiquidGlassSettings.lerp(_settingsA, _settingsB, t);
-
-          // Also animate the size
-          final size = Size.lerp(const Size(120, 80), const Size(200, 140), t)!;
-
-          return Center(
-            child: SizedBox(
-              width: size.width,
-              height: size.height,
-              child: LiquidStretch(
-                child: LiquidGlass.withOwnLayer(
-                  shape: shape,
-                  settings: widget.frosted
-                      ? settings
-                      : settings.copyWith(frostByDefault: false),
-                  fake: widget.fake,
-                  frosted: widget.frosted,
-                  child: GlassGlow(child: child!),
+      child: Center(
+        // AnimatedContainer handles size animation
+        child: AnimatedContainer(
+          duration: _animationDuration,
+          curve: Curves.easeInOut,
+          width: size.width,
+          height: size.height,
+          // LiquidGlass handles shape/settings animation implicitly
+          child: LiquidStretch(
+            child: LiquidGlass.withOwnLayer(
+              shape: shape,
+              settings: settings,
+              child: const GlassGlow(
+                child: Center(
+                  child: Text(
+                    'Combined',
+                    style: TextStyle(
+                      color: CupertinoColors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          );
-        },
-        child: const Center(
-          child: Text(
-            'Combined',
-            style: TextStyle(
-              color: CupertinoColors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -1548,12 +1410,11 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample>
 class BouncingGlassExample extends StatefulWidget {
   const BouncingGlassExample({
     super.key,
-    required this.fake,
     this.frosted = true,
+    required this.fake,
   });
-
-  final bool fake;
   final bool frosted;
+  final bool fake;
 
   @override
   State<BouncingGlassExample> createState() => _BouncingGlassExampleState();
@@ -1631,8 +1492,8 @@ class _BouncingGlassExampleState extends State<BouncingGlassExample>
       glassWidth: _glassWidth,
       glassHeight: _glassHeight,
       containerHeight: _containerHeight,
-      fake: widget.fake,
       frosted: widget.frosted,
+      fake: widget.fake,
       onContainerWidth: _onContainerWidth,
     );
   }
@@ -1646,8 +1507,8 @@ class _BouncingContainer extends StatefulWidget {
     required this.glassWidth,
     required this.glassHeight,
     required this.containerHeight,
-    required this.fake,
     required this.frosted,
+    required this.fake,
     required this.onContainerWidth,
   });
 
@@ -1656,8 +1517,8 @@ class _BouncingContainer extends StatefulWidget {
   final double glassWidth;
   final double glassHeight;
   final double containerHeight;
-  final bool fake;
   final bool frosted;
+  final bool fake;
   final ValueChanged<double> onContainerWidth;
 
   @override
@@ -1712,14 +1573,14 @@ class _BouncingContainerState extends State<_BouncingContainer> {
                   child: LiquidGlass.withOwnLayer(
                     shape: const LiquidRoundedSuperellipse(borderRadius: 16),
                     settings: LiquidGlassSettings(
-                      visibility: 1,
                       thickness: 15,
-                      frostIntensity: 6,
+                      frostIntensity: widget.frosted ? 6 : 0,
                       lightIntensity: 0.5,
                       glassColor: const Color.fromARGB(20, 255, 255, 255),
+                      fakeGlassConfigs: FakeGlassConfigs(
+                        forceEnabled: widget.fake,
+                      ),
                     ),
-                    fake: widget.fake,
-                    frosted: widget.frosted,
                     child: SizedBox(
                       width: widget.glassWidth,
                       height: widget.glassHeight,

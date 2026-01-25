@@ -62,6 +62,9 @@ void main() {
         return;
     }
     
+    // 10.0: Maximum displacement multiplier - displacement can extend up to
+    // 10x the thickness value. This provides enough range for the refraction
+    // effect while keeping precision in the encoded texture data.
     float maxDisplacement = uThickness * 10.0;
     vec2 displacement = decodeDisplacement(geometryData, maxDisplacement);
     
@@ -91,9 +94,15 @@ void main() {
     finalColor.rgb = applySaturation(finalColor.rgb, uSaturation);
 
     // Compute edge lighting
+    // normalizedHeight: 0.0 at edges, 1.0 at center (from geometry shader)
     float normalizedHeight = geometryData.b;
-    
+
+    // Scale lighting based on glass thickness for consistent appearance
+    // 40.0: Reference thickness for "normal" lighting intensity
+    // Range [1.0, 4.0]: Prevents over/under-exposure at extreme thicknesses
     float thicknessScale = clamp(40.0 / max(uThickness, 1.0), 1.0, 4.0);
+    // Edge detection threshold: thinner glass (0.8) vs thicker glass (0.5)
+    // Lower threshold = wider highlight band at edges
     float edgeThreshold = mix(0.8, 0.5, 1.0 / thicknessScale);
     float edgeFactor = 1.0 - smoothstep(0.0, edgeThreshold, normalizedHeight);
     
@@ -103,9 +112,12 @@ void main() {
         float mainLight = max(0.0, dot(normalXY, uLightDirection));
         float oppositeLight = max(0.0, dot(normalXY, -uLightDirection));
         
+        // 0.8: Secondary light intensity ratio (opposite light slightly dimmer)
         float totalInfluence = mainLight + oppositeLight * 0.8;
-        
+
+        // 1.5: Power curve for softer falloff; 3.0: Base intensity multiplier
         float directional = pow(totalInfluence, 1.5) * uLightIntensity * 3.0;
+        // 0.5: Ambient contribution factor (subtle fill light)
         float ambient = uAmbientStrength * 0.5;
         
         float brightness = (directional + ambient) * edgeFactor * thicknessScale * 0.8;

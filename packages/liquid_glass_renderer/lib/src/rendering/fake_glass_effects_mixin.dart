@@ -4,7 +4,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 import 'package:meta/meta.dart';
 
 // =============================================================================
@@ -15,20 +15,26 @@ import 'package:meta/meta.dart';
 /// Divisor for shadow width (higher = thinner). shadowWidth = thickness / this
 const kFakeGlassShadowWidthDivisor = 5.0;
 
-/// Min/max shadow width in pixels
+/// Minimum shadow width in pixels.
 const kFakeGlassShadowWidthMin = 1.0;
+
+/// Maximum shadow width in pixels.
 const kFakeGlassShadowWidthMax = 4.0;
 
 /// Divisor for shadow alpha (higher = more transparent). alpha = thickness / this
 const kFakeGlassShadowAlphaDivisor = 200.0;
 
-/// Min/max shadow alpha (0.0 - 1.0)
+/// Minimum shadow alpha (0.0 - 1.0).
 const kFakeGlassShadowAlphaMin = 0.02;
+
+/// Maximum shadow alpha (0.0 - 1.0).
 const kFakeGlassShadowAlphaMax = 0.08;
 
 // -- Specular Highlights --
-/// Min/max stroke width for sharp specular line
+/// Minimum stroke width for sharp specular line.
 const kFakeGlassSpecularStrokeMin = 2.0;
+
+/// Maximum stroke width for sharp specular line.
 const kFakeGlassSpecularStrokeMax = 2.7;
 
 /// Alpha multiplier for sharp specular (0.0 - 1.0)
@@ -39,9 +45,6 @@ const kFakeGlassSpecularBlurDivisor = 5.0;
 
 /// Divisor for overlay stroke width (higher = thinner)
 const kFakeGlassSpecularOverlayWidthDivisor = 1.9;
-
-/// Multiplier for overlay width divisor when frosted (higher = thinner)
-const kFakeGlassSpecularOverlayFrostedMultiplier = 1.5;
 
 /// Alpha multiplier for blurred overlay (0.0 - 1.0)
 const kFakeGlassSpecularOverlayAlpha = 1.0;
@@ -59,8 +62,10 @@ const kFakeGlassEnableDepthGradient = true;
 /// Multiplier for gradient alpha based on light intensity
 const kFakeGlassDepthGradientAlphaMultiplier = .1;
 
-/// Min/max gradient alpha (0.0 - 1.0)
+/// Minimum gradient alpha (0.0 - 1.0).
 const kFakeGlassDepthGradientAlphaMin = 0.2;
+
+/// Maximum gradient alpha (0.0 - 1.0).
 const kFakeGlassDepthGradientAlphaMax = 0.9;
 
 /// Ratio for dark side alpha relative to light side (0.0 - 1.0)
@@ -79,7 +84,7 @@ mixin FakeGlassEffectsMixin {
   double? _fakeGlassCachedLuminance;
   double get _glassColorLuminance {
     return _fakeGlassCachedLuminance ??=
-        fakeGlassSettings.effectiveGlassColor.computeLuminance();
+        fakeGlassSettings.glassColor.computeLuminance();
   }
 
   /// Invalidates the cached luminance value.
@@ -89,43 +94,19 @@ mixin FakeGlassEffectsMixin {
   }
 
   /// Paints all glass visual effects (color, depth, shadow, specular).
-  ///
-  /// Effects are scaled by [visibility] to fade out smoothly with the content.
   void paintFakeGlassEffects(
     Canvas canvas,
     Path path,
-    Rect bounds, {
-    required bool frosted,
-    required double visibility,
-  }) {
-    // Skip painting effects at very low visibility to prevent flicker
-    if (visibility < 0.05) return;
-
-    // Apply visibility as opacity to all effects
-    if (visibility < 1.0) {
-      canvas.saveLayer(
-          bounds,
-          Paint()
-            ..color = Color.fromARGB(
-              (255 * visibility).round(),
-              255,
-              255,
-              255,
-            ));
-    }
-
+    Rect bounds,
+  ) {
     _paintColor(canvas, path);
     _paintDepthGradient(canvas, path, bounds);
     _paintInnerEdgeShadow(canvas, path, bounds);
-    _paintSpecular(canvas, path, bounds, frosted: frosted);
-
-    if (visibility < 1.0) {
-      canvas.restore();
-    }
+    _paintSpecular(canvas, path, bounds);
   }
 
   void _paintColor(Canvas canvas, Path path) {
-    final color = fakeGlassSettings.effectiveGlassColor;
+    final color = fakeGlassSettings.glassColor;
 
     // Multiply for dark tints (absorption), screen for light (transmission)
     final blendMode =
@@ -150,9 +131,8 @@ mixin FakeGlassEffectsMixin {
   void _paintSpecular(
     Canvas canvas,
     Path path,
-    Rect bounds, {
-    required bool frosted,
-  }) {
+    Rect bounds,
+  ) {
     // Expand bounds to a square to make sure the gradient angle will match the
     // light angle correctly. A squashed gradient would change the angle.
     final squareBounds = Rect.fromCircle(
@@ -161,16 +141,16 @@ mixin FakeGlassEffectsMixin {
     );
 
     final lightIntensity =
-        fakeGlassSettings.effectiveLightIntensity.clamp(0.0, 1.0);
+        fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
     final ambientStrength =
-        fakeGlassSettings.effectiveAmbientStrength.clamp(0.0, 1.0);
+        fakeGlassSettings.ambientStrength.clamp(0.0, 1.0);
 
     final thicknessFactor =
-        (fakeGlassSettings.effectiveThickness / 5).clamp(0.0, 1.0);
+        (fakeGlassSettings.thickness / 5).clamp(0.0, 1.0);
     final alpha = Curves.easeOut.transform(lightIntensity);
 
     // Create specular color from glass tint - brighter version of glass color
-    final glassColor = fakeGlassSettings.effectiveGlassColor;
+    final glassColor = fakeGlassSettings.glassColor;
     final baseSpecularColor = _brightenColor(glassColor);
     final color = baseSpecularColor.withValues(
       alpha: alpha * thicknessFactor,
@@ -235,12 +215,9 @@ mixin FakeGlassEffectsMixin {
           color.withValues(alpha: color.a * kFakeGlassSpecularOverlayAlpha)
       ..style = PaintingStyle.stroke
       ..maskFilter = MaskFilter.blur(BlurStyle.normal,
-          fakeGlassSettings.effectiveThickness / kFakeGlassSpecularBlurDivisor)
-      ..strokeWidth = fakeGlassSettings.effectiveThickness /
-          (frosted
-              ? kFakeGlassSpecularOverlayWidthDivisor *
-                  kFakeGlassSpecularOverlayFrostedMultiplier
-              : kFakeGlassSpecularOverlayWidthDivisor)
+          fakeGlassSettings.thickness / kFakeGlassSpecularBlurDivisor)
+      ..strokeWidth =
+          fakeGlassSettings.thickness / kFakeGlassSpecularOverlayWidthDivisor
       ..blendMode = BlendMode.overlay;
     canvas.drawPath(path, overlay);
   }
@@ -249,7 +226,7 @@ mixin FakeGlassEffectsMixin {
   ///
   /// This creates the illusion of thickness by darkening the inner edges.
   void _paintInnerEdgeShadow(Canvas canvas, Path path, Rect bounds) {
-    final thickness = fakeGlassSettings.effectiveThickness;
+    final thickness = fakeGlassSettings.thickness;
     if (thickness <= 0) return;
 
     // Inner shadow - subtle darkening at edges
@@ -274,11 +251,11 @@ mixin FakeGlassEffectsMixin {
   void _paintDepthGradient(Canvas canvas, Path path, Rect bounds) {
     if (!kFakeGlassEnableDepthGradient) return;
 
-    final thickness = fakeGlassSettings.effectiveThickness;
+    final thickness = fakeGlassSettings.thickness;
     if (thickness <= 0) return;
 
     final lightIntensity =
-        fakeGlassSettings.effectiveLightIntensity.clamp(0.0, 1.0);
+        fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
     final gradientAlpha =
         (lightIntensity * kFakeGlassDepthGradientAlphaMultiplier).clamp(
             kFakeGlassDepthGradientAlphaMin, kFakeGlassDepthGradientAlphaMax);

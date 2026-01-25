@@ -3,8 +3,9 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:leak_tracker/leak_tracker.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer_example/basic_app.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus_example/basic_app.dart';
+// ignore: depend_on_referenced_packages
 export 'package:logging/logging.dart' show Level, Logger;
 
 void main() {
@@ -23,7 +24,7 @@ final settingsNotifier = ValueNotifier<LiquidGlassSettings>(
   LiquidGlassSettings(
     thickness: 20,
     lightAngle: 0.5 * pi,
-    chromaticAberration: 1,
+    liquidGlassConfigs: LiquidGlassConfigs(chromaticAberration: 1),
   ),
 );
 

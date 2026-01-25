@@ -36,8 +36,8 @@ Future<void> main() {
             );
 
             print('Performance results saved for $timelineKey');
-            print('Summary file: build/${timelineKey}.timeline_summary.json');
-            print('Timeline file: build/${timelineKey}.timeline.json');
+            print('Summary file: build/$timelineKey.timeline_summary.json');
+            print('Timeline file: build/$timelineKey.timeline.json');
           } catch (e) {
             print('Failed to process timeline $timelineKey: $e');
           }

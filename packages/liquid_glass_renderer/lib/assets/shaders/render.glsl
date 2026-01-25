@@ -5,21 +5,6 @@
 // Constants
 const vec3 LUMA_WEIGHTS = vec3(0.299, 0.587, 0.114);
 
-// Utility functions
-mat2 rotate2d(float angle) {
-    return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-}
-
-// Compute Y coordinate reversing it for OpenGL backend
-float computeY(float coordY, vec2 size) {
-    #ifdef IMPELLER_TARGET_OPENGLES
-        return 1.0 - (coordY / size.y);
-    #else
-        return coordY / size.y;
-    #endif
-}
-
-
 // Optimized highlight color - ~60% fewer operations than original
 vec3 getHighlightColor(vec3 backgroundColor, float targetBrightness) {
     float luminance = dot(backgroundColor, LUMA_WEIGHTS);
@@ -84,7 +69,10 @@ vec3 calculateLighting(
 
     // --- Rim lighting ---
     // Fast rational approximation: 1/(1+k*x^2)
+    // 1.5: Rim width in pixels - controls how far the highlight extends inward
     float rimWidth = 1.5;
+    // 0.89: Falloff coefficient - higher = sharper falloff, lower = softer
+    // Tuned to match Apple's liquid glass rim appearance
     float k = 0.89;
     float x = sd / rimWidth;
     float rimFactor = 1.0 / (1.0 + k * x * x);
@@ -118,30 +106,6 @@ vec3 calculateLighting(
 
     // Apply shape mask like the original version
     return totalRimLight * thicknessFactor * shape;
-}
-
-// Calculate wavelength-dependent refractive index using inverted dispersion formula
-// This creates the desired dispersion effect where red refracts more than blue
-float calculateDispersiveIndex(float baseIndex, float chromaticAberration, float wavelength) {
-    if (chromaticAberration < 0.001) {
-        return baseIndex;
-    }
-    
-    // Inverted dispersion formula: n(λ) = A - B/λ² - C/λ⁴
-    // This makes longer wavelengths (red) have higher refractive indices
-    
-    // Typical wavelengths in micrometers: Red ~0.65, Green ~0.55, Blue ~0.45
-    float wavelengthSq = wavelength * wavelength;
-    float wavelengthQuad = wavelengthSq * wavelengthSq;
-    
-    // Inverted dispersion coefficients for the desired chromatic aberration
-    // B coefficient (quadratic term) - primary dispersion (now negative)
-    float B = chromaticAberration * 0.08 * (baseIndex - 1.0);
-    
-    // C coefficient (quartic term) - secondary dispersion (now negative)
-    float C = chromaticAberration * 0.003 * (baseIndex - 1.0);
-    
-    return baseIndex - B / wavelengthSq - C / wavelengthQuad;
 }
 
 // Calculate refraction with physically-based chromatic aberration
@@ -243,15 +207,4 @@ vec4 renderLiquidGlass(vec2 screenUV, vec2 p, vec2 uSize, float sd, float thickn
     // Only sample background texture when we need to blend
     vec4 bgSample = texture(backgroundTexture, screenUV);
     return mix(bgSample, finalColor, foregroundAlpha);
-}
-
-// Debug function to visualize normals as colors
-vec4 debugNormals(vec4 originalColor, vec3 normal, bool enableDebug) {
-    if (enableDebug) {
-        // Convert normal from [-1,1] to [0,1] range for color visualization
-        vec3 normalColor = (normal + 1.0) * 0.5;
-        // Mix with 99% normal visibility
-        return mix(originalColor, vec4(normalColor, 1.0), 0.99);
-    }
-    return originalColor;
 }

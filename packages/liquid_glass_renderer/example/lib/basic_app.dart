@@ -3,10 +3,10 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer_example/shared.dart';
-import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
-import 'package:liquid_glass_renderer_example/widgets/transition_examples.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus_example/shared.dart';
+import 'package:liquid_glass_plus_example/widgets/bottom_bar.dart';
+import 'package:liquid_glass_plus_example/widgets/transition_examples.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -72,12 +72,13 @@ class BasicApp extends HookWidget {
                 listenable: Listenable.merge([settingsNotifier, light]),
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
-                    glassColor: Colors.white24,
-                    fakeGlassRefraction: 5.0,
-                    fakeGlassRefractionFrostedMultiplier: 1.5,
+                    glassColor: Colors.white54,
+                    fakeGlassConfigs: FakeGlassConfigs(
+                      forceEnabled: fake.value,
+                      refraction: 5.0,
+                    ),
                   );
                   return LiquidGlassLayer(
-                    fake: fake.value,
                     settings: settings.copyWith(lightAngle: light.value),
                     child: Column(
                       spacing: 16,
@@ -88,8 +89,11 @@ class BasicApp extends HookWidget {
                           spacing: 16,
                           children: [
                             LiquidStretch(
-                              child: LiquidGlass(
-                                frosted: false,
+                              child: LiquidGlass.withOwnLayer(
+                                settings: settings.copyWith(
+                                  lightAngle: light.value,
+                                  frostIntensity: 0,
+                                ),
                                 debugLabel: 'noFrost',
                                 shape: LiquidRoundedSuperellipse(
                                   borderRadius: 20,
@@ -166,7 +170,7 @@ class BasicApp extends HookWidget {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: LiquidGlassBottomBar(
-                  fake: fake.value,
+                  forceFakeGlass: fake.value,
                   extraButton: LiquidGlassBottomBarExtraButton(
                     icon: CupertinoIcons.add_circled,
                     onTap: () {

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/internal/glass_drag_builder.dart';
+import 'package:liquid_glass_plus/src/internal/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
 
@@ -68,7 +68,8 @@ class LiquidStretch extends StatelessWidget {
     this.resistance = .08,
     this.hitTestBehavior = HitTestBehavior.opaque,
     super.key,
-  });
+  })  : assert(interactionScale > 0, 'interactionScale must be > 0'),
+        assert(resistance >= 0, 'resistance must be >= 0');
 
   /// The scale factor to apply when the user is interacting with the widget.
   ///

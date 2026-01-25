@@ -181,14 +181,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
     final useFakeGlass = settings.shouldUseFakeGlass;
 
     if (useFakeGlass) {
-      // Only log info if we're falling back due to platform, not forced
-      if (!settings.fakeGlassConfigs.forceEnabled) {
-        logger.info(
-          'Shader filters not supported (Skia mode). '
-          'Using fake glass fallback. For best visual quality and performance, '
-          'enable Impeller.',
-        );
-      }
       // Use the same rendering pipeline as real glass, but with null shader
       // This enables unified widget grouping and layer behavior
       return RepaintBoundary(
@@ -338,9 +330,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : null;
 
     // Boost saturation to match real glass shader appearance
-    final boostedSaturation = (1.0 +
-            (settings.saturation - 1.0) * kFakeGlassSaturationMultiplier)
-        .clamp(0.0, double.infinity);
+    final boostedSaturation =
+        (1.0 + (settings.saturation - 1.0) * kFakeGlassSaturationMultiplier)
+            .clamp(0.0, double.infinity);
     final saturationFilter = boostedSaturation != 1.0
         ? ColorFilter.matrix(_getSaturationMatrix(boostedSaturation))
         : null;
@@ -496,7 +488,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
-
     // Build combined filter and clip path
     final combinedFilter = _buildFakeGlassFilter();
     final clipPath = Path();
@@ -509,10 +500,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     // Always use the same layer handles to avoid animation glitches
-    final filterLayer =
-        (_fakeGlassFilterLayerHandle.layer ??= BackdropFilterLayer())
-          ..backdropKey = backdropKey
-          ..filter = combinedFilter;
+    final filterLayer = (_fakeGlassFilterLayerHandle.layer ??=
+        BackdropFilterLayer())
+      ..backdropKey = backdropKey
+      ..filter = combinedFilter;
 
     _fakeGlassClipPathLayerHandle.layer = context.pushClipPath(
       needsCompositing,

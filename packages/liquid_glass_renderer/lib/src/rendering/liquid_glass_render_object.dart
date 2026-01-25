@@ -69,6 +69,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     );
     return _settings!;
   }
+
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
@@ -395,7 +396,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
           canvas.drawImage(image, Offset.zero, Paint());
         case PathOnlyGeometryCache():
           buffer?.writeln('\t- PathOnly @ ${geometry.bounds}');
-          // PathOnlyGeometryCache has no matte to draw
+        // PathOnlyGeometryCache has no matte to draw
       }
 
       canvas.restore();

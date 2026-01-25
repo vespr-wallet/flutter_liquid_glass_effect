@@ -140,13 +140,10 @@ mixin FakeGlassEffectsMixin {
       radius: bounds.size.longestSide / 2,
     );
 
-    final lightIntensity =
-        fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
-    final ambientStrength =
-        fakeGlassSettings.ambientStrength.clamp(0.0, 1.0);
+    final lightIntensity = fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
+    final ambientStrength = fakeGlassSettings.ambientStrength.clamp(0.0, 1.0);
 
-    final thicknessFactor =
-        (fakeGlassSettings.thickness / 5).clamp(0.0, 1.0);
+    final thicknessFactor = (fakeGlassSettings.thickness / 5).clamp(0.0, 1.0);
     final alpha = Curves.easeOut.transform(lightIntensity);
 
     // Create specular color from glass tint - brighter version of glass color
@@ -254,8 +251,7 @@ mixin FakeGlassEffectsMixin {
     final thickness = fakeGlassSettings.thickness;
     if (thickness <= 0) return;
 
-    final lightIntensity =
-        fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
+    final lightIntensity = fakeGlassSettings.lightIntensity.clamp(0.0, 1.0);
     final gradientAlpha =
         (lightIntensity * kFakeGlassDepthGradientAlphaMultiplier).clamp(
             kFakeGlassDepthGradientAlphaMin, kFakeGlassDepthGradientAlphaMax);

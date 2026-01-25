@@ -1127,21 +1127,21 @@ class _FlatToGlassExampleState extends State<FlatToGlassExample> {
         animationDuration: Duration(milliseconds: 600),
       ).copyWith(
         // Use copyWith on fakeGlassConfigs to preserve refraction: 0 from flat
-        fakeGlassConfigs: const FakeGlassConfigs(refraction: 0).copyWith(
-          forceEnabled: widget.fake,
-        ),
+        fakeGlassConfigs: const FakeGlassConfigs(
+          refraction: 0,
+        ).copyWith(forceEnabled: widget.fake),
       );
 
   // Glass state: full glass effect
   LiquidGlassSettings get _glassSettings => LiquidGlassSettings(
-        thickness: 20,
-        frostIntensity: widget.frosted ? 8 : 0,
-        lightIntensity: 0.7,
-        saturation: 1.5,
-        glassColor: const Color.fromARGB(25, 255, 255, 255),
-        animationDuration: const Duration(milliseconds: 600),
-        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
-      );
+    thickness: 20,
+    frostIntensity: widget.frosted ? 8 : 0,
+    lightIntensity: 0.7,
+    saturation: 1.5,
+    glassColor: const Color.fromARGB(25, 255, 255, 255),
+    animationDuration: const Duration(milliseconds: 600),
+    fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+  );
 
   void _toggle() {
     setState(() {
@@ -1194,25 +1194,25 @@ class _GlassIntensityExampleState extends State<GlassIntensityExample> {
 
   // Subtle glass
   LiquidGlassSettings get _subtleSettings => LiquidGlassSettings(
-        thickness: 8,
-        frostIntensity: widget.frosted ? 3 : 0,
-        lightIntensity: 0.3,
-        saturation: 1.2,
-        glassColor: const Color.fromARGB(15, 200, 220, 255),
-        animationDuration: const Duration(milliseconds: 700),
-        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
-      );
+    thickness: 8,
+    frostIntensity: widget.frosted ? 3 : 0,
+    lightIntensity: 0.3,
+    saturation: 1.2,
+    glassColor: const Color.fromARGB(15, 200, 220, 255),
+    animationDuration: const Duration(milliseconds: 700),
+    fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+  );
 
   // Intense glass
   LiquidGlassSettings get _intenseSettings => LiquidGlassSettings(
-        thickness: 35,
-        frostIntensity: widget.frosted ? 15 : 0,
-        lightIntensity: 1.0,
-        saturation: 1.8,
-        glassColor: const Color.fromARGB(50, 255, 200, 150),
-        animationDuration: const Duration(milliseconds: 700),
-        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
-      );
+    thickness: 35,
+    frostIntensity: widget.frosted ? 15 : 0,
+    lightIntensity: 1.0,
+    saturation: 1.8,
+    glassColor: const Color.fromARGB(50, 255, 200, 150),
+    animationDuration: const Duration(milliseconds: 700),
+    fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+  );
 
   void _toggle() {
     setState(() {
@@ -1291,9 +1291,7 @@ class _BorderRadiusAnimationExampleState
             animationDuration: const Duration(milliseconds: 500),
             fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
           ),
-          child: const GlassGlow(
-            child: _ExampleContent(text: 'Border Radius'),
-          ),
+          child: const GlassGlow(child: _ExampleContent(text: 'Border Radius')),
         ),
       ),
     );
@@ -1331,25 +1329,25 @@ class _CombinedTransitionExampleState extends State<CombinedTransitionExample> {
   // State A: Small, sharp corners, subtle glass
   static const _collapsedShape = LiquidRoundedSuperellipse(borderRadius: 12);
   LiquidGlassSettings get _collapsedSettings => LiquidGlassSettings(
-        thickness: 10,
-        frostIntensity: widget.frosted ? 4 : 0,
-        lightIntensity: 0.3,
-        glassColor: const Color.fromARGB(15, 200, 200, 255),
-        animationDuration: _animationDuration,
-        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
-      );
+    thickness: 10,
+    frostIntensity: widget.frosted ? 4 : 0,
+    lightIntensity: 0.3,
+    glassColor: const Color.fromARGB(15, 200, 200, 255),
+    animationDuration: _animationDuration,
+    fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+  );
 
   // State B: Large, rounded corners, prominent glass
   static const _expandedShape = LiquidRoundedSuperellipse(borderRadius: 48);
   LiquidGlassSettings get _expandedSettings => LiquidGlassSettings(
-        thickness: 30,
-        frostIntensity: widget.frosted ? 12 : 0,
-        lightIntensity: 0.9,
-        saturation: 1.6,
-        glassColor: const Color.fromARGB(40, 255, 220, 150),
-        animationDuration: _animationDuration,
-        fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
-      );
+    thickness: 30,
+    frostIntensity: widget.frosted ? 12 : 0,
+    lightIntensity: 0.9,
+    saturation: 1.6,
+    glassColor: const Color.fromARGB(40, 255, 220, 150),
+    animationDuration: _animationDuration,
+    fakeGlassConfigs: FakeGlassConfigs(forceEnabled: widget.fake),
+  );
 
   void _toggle() {
     setState(() {

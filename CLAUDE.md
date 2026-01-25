@@ -4,15 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Flutter monorepo for implementing liquid glass/frosted glass effects in Flutter applications. The project uses Melos for managing multiple packages and requires Impeller (Flutter's new rendering engine) - Skia is not supported.
+This is a Flutter monorepo for implementing liquid glass/frosted glass effects in Flutter applications. The project uses Melos for managing multiple packages. Works best with Impeller (Flutter's new rendering engine), but Skia is also supported using an approximation that produces similar but not identical visual results.
 
 **Packages:**
 - `liquid_glass_plus`: Core package for rendering liquid glass effects with custom shaders
 - `apple_liquid_glass`: WIP wrapper that currently just re-exports `liquid_glass_plus`
 
 **Platform Support:**
-- Supported: macOS, iOS, Android (Impeller only)
-- Not supported: Web, Windows, Linux
+- Best quality: macOS, iOS, Android with Impeller
+- Supported with approximation: All platforms (including Web, Windows, Linux) use a linear approximation that produces similar but not identical visual results
 
 ## Common Commands
 
@@ -119,7 +119,7 @@ Golden tests verify visual output and are tagged with `golden` in `dart_test.yam
 - On PRs labeled with "goldens"
 - On macOS-15 runners (see `.github/workflows/main.yaml`)
 
-All tests must use the `--enable-impeller` flag since Skia is not supported.
+All tests must use the `--enable-impeller` flag for consistent golden test results (Skia uses an approximation that produces different visuals).
 
 ### Test Structure
 - Tests are in `packages/*/test/` directories

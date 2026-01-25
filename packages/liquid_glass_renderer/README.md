@@ -6,21 +6,6 @@
 [![lints by lintervention][lintervention_badge]][lintervention_link]
 
 
-> ## ⚠️ **EXPERIMENTAL - USE WITH CAUTION**
->
-> **This package is still experimental and should not be blindly added to production apps for all devices.** While performance has improved significantly, liquid glass effects in Flutter are computationally intensive due to the limited access to the GPU and may not perform well on all hardware configurations. 
-> 
-> **Before deploying to production:**
-> - **Take a look at the [Limitations](#limitations) and [Performance](#-a-word-on-performance) sections** before even thinking about using this package in production.
-> - **Make sure your App is built on Impeller**. Skia is unsupported for now
-> - **Test thoroughly on your target devices**, especially lower-end and mid-range devices
-> - **Monitor performance metrics** (memory usage, frame rates, power consumption, jank)
-> - **Use `fake: true` strategically**: Set `LiquidGlassLayer(fake: true)` for layers that are not highly visible or have low visual impact
->
-> **We need your feedback!** Please test on your devices and report performance characteristics, issues, and suggestions.
-
-
-
 A Flutter package for creating a stunning "liquid glass" or "frosted glass" effect. This package allows you to transform your widgets into beautiful, customizable glass-like surfaces that can blend and interact with each other.
 
 

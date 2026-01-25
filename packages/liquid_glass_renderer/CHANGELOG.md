@@ -1,3 +1,9 @@
+## 0.3.1+1
+
+- **DOCS**: clarified that Skia is supported using a linear approximation (not unsupported).
+- **DOCS**: removed experimental warning section from README.
+- **DOCS**: updated platform support documentation to reflect all platforms are supported.
+
 ## 0.3.1
 
 > Note: This release has breaking changes.

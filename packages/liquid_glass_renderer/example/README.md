@@ -1,6 +1,6 @@
-# liquid_glass_renderer Example
+# Liquid Glass Plus Example
 
-This example demonstrates how to use the `liquid_glass_renderer` package to create liquid glass effects in Flutter.
+This example demonstrates how to use the `liquid_glass_plus` package to create liquid glass effects in Flutter.
 
 ## Requirements
 
@@ -90,6 +90,6 @@ LiquidStretch(
 ## Running the Example
 
 ```bash
-cd packages/liquid_glass_renderer/example
+cd packages/liquid_glass_plus/example
 flutter run --enable-impeller
 ```

@@ -24,7 +24,7 @@
 /// ## Optional Features
 ///
 /// - `LiquidStretch` - Squash/stretch on drag (not required for basic glass)
-library liquid_glass_renderer;
+library liquid_glass_plus;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 

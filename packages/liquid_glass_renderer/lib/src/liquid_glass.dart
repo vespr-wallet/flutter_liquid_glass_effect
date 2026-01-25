@@ -5,11 +5,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/render_liquid_glass_geometry.dart';
-import 'package:liquid_glass_renderer/src/internal/transform_tracking_repaint_boundary_mixin.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/shaders.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus/src/internal/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_plus/src/internal/transform_tracking_repaint_boundary_mixin.dart';
+import 'package:liquid_glass_plus/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_plus/src/shaders.dart';
 import 'package:meta/meta.dart';
 
 /// A liquid glass shape.
@@ -72,7 +72,7 @@ class LiquidGlass extends StatefulWidget {
   /// on top using [glassContainsChild].
   final Widget child;
 
-  /// {@template liquid_glass_renderer.LiquidGlass.shape}
+  /// {@template liquid_glass_plus.LiquidGlass.shape}
   /// The shape of this glass.
   ///
   /// This is the shape of the glass that will be rendered.

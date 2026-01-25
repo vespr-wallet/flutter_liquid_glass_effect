@@ -1,4 +1,4 @@
-# Liquid Glass Renderer Architecture
+# Liquid Glass Plus Architecture
 
 This document explains how the different components and widgets interact to create the liquid glass effect.
 
@@ -332,7 +332,7 @@ LiquidGlassLayer(
 Set `debugPaintLiquidGlassGeometry = true` to visualize geometry textures:
 
 ```dart
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 void main() {
   debugPaintLiquidGlassGeometry = true; // Only works in debug mode

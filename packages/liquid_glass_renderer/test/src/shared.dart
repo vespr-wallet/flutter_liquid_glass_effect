@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 

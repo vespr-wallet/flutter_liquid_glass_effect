@@ -1,7 +1,7 @@
-# Liquid Glass Renderer
+# Liquid Glass Plus
 
 <!-- [![Code Coverage](./coverage.svg)](./test/) -->
-[![Pub Version](https://img.shields.io/pub/v/liquid_glass_renderer)](https://pub.dev/packages/liquid_glass_renderer)
+[![Pub Version](https://img.shields.io/pub/v/liquid_glass_plus)](https://pub.dev/packages/liquid_glass_plus)
 [![Code Coverage](./coverage.svg)](./test/)
 [![lints by lintervention][lintervention_badge]][lintervention_link]
 
@@ -33,8 +33,9 @@ A Flutter package for creating a stunning "liquid glass" or "frosted glass" effe
 -   🎨 **Highly Customizable**: Adjust thickness, color tint, lighting, and more.
 -   🔍 **Background Effects**: Apply background blur and refraction.
 -   ✨ **Interactive Glow**: Add touch-responsive glow effects to glass surfaces.
--   🎭 **Fake Glass**: Lightweight glass appearance without expensive shaders for better performance.
+-   🎭 **Fake Glass**: Skia-compatible glass approximation using backdrop filters instead of custom shaders.
 -   🤸 **Stretch Effects**: Apply organic squash and stretch animations to glass widgets.
+-   🎬 **Implicit Animations**: Shape and settings changes are automatically animated (changing between shape types not yet supported).
 
 ## Installation
 
@@ -43,13 +44,13 @@ A Flutter package for creating a stunning "liquid glass" or "frosted glass" effe
 Install via `flutter pub add`:
 
 ```sh
-flutter pub add liquid_glass_renderer
+flutter pub add liquid_glass_plus
 ```
 
 And import it in your Dart code:
 
 ```dart
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 ```
 
 ## How To Use
@@ -86,7 +87,6 @@ This package provides several widgets to create the glass effect:
 | ------------------------- | ------------------------------------------------------------------------------------------ |
 | `LiquidGlassLayer`        | Container for all liquid glass effects. Required parent for `LiquidGlass` widgets.         |
 | `LiquidGlass`             | Creates a single glass shape. Must be inside a `LiquidGlassLayer`.                         |
-| `LiquidGlassBlendGroup`   | Groups multiple `LiquidGlass.grouped` shapes to blend them together seamlessly.            |
 | `GlassGlow`               | Add touch-responsive glow effects to glass surfaces.                                       |
 | `LiquidStretch`           | Add interactive squash and stretch effects to glass widgets (optional).                    |
 
@@ -96,13 +96,12 @@ As this is a pre-release, there are a few things to keep in mind:
 
 - **Only works on Impeller**, so Web, Windows, and Linux are entirely unsupported for now
 - **Memory spike when animating shapes** There is a [bug in Flutter](https://github.com/flutter/flutter/issues/138627) that prevents us from disposing generated textures immediately, leading to temporary memory spikes when animating glass shapes. Read [A word on Performance](#-a-word-on-performance) for tips on minimizing this.
-- **Maximum of 16 shapes** can be blended in a `LiquidGlassBlendGroup`, and performance will degrade significantly with the more shapes you add in the same group.
 - **Blur** introduces artifacts when blending shapes. Upvote [this issue](https://github.com/flutter/flutter/issues/170820) to get that fixed.
 
 
 ### 🚨 A word on Performance
 
-The liquid glass effect is computationally intensive, especially on mobile devices. To save GPU cycles, `liquid_glass_renderer` will try to cache geometry in textures wherever possible.
+The liquid glass effect is computationally intensive, especially on mobile devices. To save GPU cycles, `liquid_glass_plus` will try to cache geometry in textures wherever possible.
 
 #### Memory Usage
 Unfortunately, due to a [Flutter bug](https://github.com/flutter/flutter/issues/138627), we cannot dispose of these textures immediately, which may lead to temporary memory spikes when animating glass shapes. Please upvote the issue to help get it fixed!
@@ -110,14 +109,8 @@ Unfortunately, due to a [Flutter bug](https://github.com/flutter/flutter/issues/
 #### Best Practices
 To ensure the best performance when using liquid glass effects, consider the following tips:
 - **Use `LiquidGlassLayer` for shapes that share the same settings.** Creating many individual layers is expensive.
-- **Minimize the amount of pixels covered by `LiquidGlassLayer` and `LiquidGlassBlendGroup`**: Both `LiquidGlassLayer` and `LiquidGlassBlendGroup` will create textures that cover their entire area. 
-Try to keep these areas as small as possible.
-If you have a large area with sparse glass shapes, consider splitting them into multiple smaller layers/groups.
-- **Limit the number of blended shapes**: Each additional shape in a `LiquidGlassBlendGroup` increases the computational load. 
-Try to keep the number of blended shapes low.
-- **Limit animations**: The glass effect is almost free while shapes remain in the same position onscreen.
-Moving shapes forces the package to re-render their glass effect every frame, which is expensive.
-In a `LiquidGlassBlendGroup`, moving any shape forces all shapes in the group to re-render.
+- **Minimize the amount of pixels covered by `LiquidGlassLayer`**: The layer will create textures that cover its entire area. Try to keep these areas as small as possible. If you have a large area with sparse glass shapes, consider splitting them into multiple smaller layers.
+- **Limit animations**: The glass effect is almost free while shapes remain in the same position onscreen. Moving shapes forces the package to re-render their glass effect every frame, which is expensive.
 
 ---
 
@@ -131,7 +124,7 @@ To create glass shapes, you must wrap them in a `LiquidGlassLayer`. This layer m
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 class MyGlassWidget extends StatelessWidget {
   @override
@@ -199,46 +192,8 @@ The LiquidGlass widget supports the following shapes:
 -   `LiquidOval` - A perfect ellipse/circle
 -   `LiquidRoundedRectangle` - A rounded rectangle
 
-All shapes take a simple `double` for `borderRadius` instead of `BorderRasdius` or `Radius`, since they don't support non-uniform radii.
+All shapes take a simple `double` for `borderRadius` instead of `BorderRadius` or `Radius`, since they don't support non-uniform radii.
 
-
-### `LiquidGlassBlendGroup`: Blending Multiple Shapes
-
-![Blending Demo](doc/blended.png)
-
-To blend multiple glass shapes together seamlessly, wrap them in a `LiquidGlassBlendGroup` inside a `LiquidGlassLayer`. Use `LiquidGlass.grouped()` for shapes that should blend together.
-
-```dart
-LiquidGlassLayer(
-  settings: const LiquidGlassSettings(
-    thickness: 20,
-    frostIntensity: 10,
-  ),
-  child: LiquidGlassBlendGroup(
-    blend: 20.0, // Controls how much shapes blend together
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        LiquidGlass.grouped(
-          shape: LiquidRoundedSuperellipse(
-            borderRadius: 40,
-          ),
-          child: const SizedBox.square(dimension: 100),
-        ),
-        const SizedBox(height: 50),
-        LiquidGlass.grouped(
-          shape: LiquidRoundedSuperellipse(
-            borderRadius: 40,
-          ),
-          child: const SizedBox.square(dimension: 100),
-        ),
-      ],
-    ),
-  ),
-)
-```
-
-You can have multiple `LiquidGlass` widgets in a `LiquidGlassLayer` without blending by using the default `LiquidGlass()` constructor (not `.grouped()`).
 
 ## Customization
 
@@ -255,10 +210,7 @@ LiquidGlassLayer(
     outlineIntensity: 0.5,
     saturation: 1.2,
   ),
-  child: LiquidGlassBlendGroup(
-    blend: 40, // blend is now on LiquidGlassBlendGroup, not settings
-    child: // ... your LiquidGlass.grouped widgets
-  ),
+  child: // ... your LiquidGlass widgets
 )
 ```
 
@@ -273,9 +225,9 @@ Here's a breakdown of the key settings:
 -   `outlineIntensity`: The visibility of the glass outline/edge.
 -   `saturation`: Adjusts the color saturation of background pixels visible through the glass (1.0 = no change, <1.0 = desaturated, >1.0 = more saturated).
 
-**Note:** The `blend` parameter has been moved from `LiquidGlassSettings` to the `LiquidGlassBlendGroup` constructor, as it specifically controls shape blending behavior.
-
 Increasing saturation when using colored glass helps achieve an Apple-like aesthetic.
+
+**Note:** Changes to `LiquidGlassSettings` or the `LiquidShape` are automatically animated with smooth transitions. Simply update the values and the glass effect will interpolate to the new configuration. However, changing between shape types (e.g., from `LiquidRoundedSuperellipse` to `LiquidOval`) is not yet animated.
 
 ### Adding Blur (Frost)
 
@@ -298,13 +250,15 @@ The `child` of a `LiquidGlass` widget can be rendered either "inside" the glass 
 -   `glassContainsChild: false` (default): The child is rendered normally on top of the glass effect.
 -   `glassContainsChild: true`: The child is part of the glass, affected by color tint and refraction.
 
-### Fake Glass Mode: Lightweight Alternative
+### Fake Glass Mode: Skia-Compatible Alternative
 
-For scenarios where performance is critical or you need a glass-like appearance without the computational cost of refraction, enable fake glass mode on the layer. It provides a similar visual effect using backdrop filters instead of shaders.
+When Impeller is not available (Skia rendering), fake glass mode is automatically used. It provides a similar visual effect using backdrop filters instead of custom shaders. No configuration is needed - the package detects the rendering backend and switches automatically.
+
+If you want to force fake glass mode even when Impeller is available, you can set `fake: true` on the layer:
 
 ```dart
 LiquidGlassLayer(
-  fake: true,
+  fake: true, // Force fake glass (normally auto-detected)
   settings: const LiquidGlassSettings(
     frostIntensity: 10,
     glassColor: Color(0x33FFFFFF),
@@ -314,11 +268,13 @@ LiquidGlassLayer(
     child: const SizedBox(
       height: 100,
       width: 100,
-      child: Center(child: Text('Fast Glass')),
+      child: Center(child: Text('Fake Glass')),
     ),
   ),
 )
 ```
+
+Note that performance is similar or slightly worse than real glass on Impeller, so there's no performance benefit to forcing fake glass.
 
 **Note:** Fake glass mode ignores `refractiveIndex`; `thickness` only affects faux lighting/edge effects, not true refraction.
 
@@ -373,6 +329,12 @@ The widget listens to drag gestures and applies smooth squash and stretch transf
 ---
 
 For more details, check out the API documentation in the source code.
+
+---
+
+## Acknowledgments
+
+This package started as a fork of [flutter_liquid_glass](https://github.com/whynotmake-it/flutter_liquid_glass) by [whynotmake.it](https://whynotmake.it).
 
 ---
 

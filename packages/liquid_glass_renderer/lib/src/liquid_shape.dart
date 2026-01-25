@@ -2,7 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 
 /// Represents a shape that can be used by a [LiquidGlass] widget.
 sealed class LiquidShape extends OutlinedBorder with EquatableMixin {

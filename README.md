@@ -9,7 +9,8 @@ Flutter Liquid Glass Workspace
 ## Package overview
 | Package                                                                   | pub.dev                                                                                                                              | Description                                           |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| [liquid_glass_renderer](./packages/liquid_glass_renderer)                 | [![Pub Version](https://img.shields.io/pub/v/liquid_glass_renderer)](https://pub.dev/packages/liquid_glass_renderer)                 | A Flutter package for rendering liquid glass effects. |
+| [liquid_glass_plus](./packages/liquid_glass_renderer)                 | [![Pub Version](https://img.shields.io/pub/v/liquid_glass_plus)](https://pub.dev/packages/liquid_glass_plus)                 | A Flutter package for rendering liquid glass effects. |
 
+## Acknowledgments
 
----
+This project started as a fork of [flutter_liquid_glass](https://github.com/whynotmake-it/flutter_liquid_glass) by [whynotmake.it](https://whynotmake.it).

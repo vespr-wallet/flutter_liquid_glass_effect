@@ -2,7 +2,7 @@
 
 > Note: This release has breaking changes.
 
-This is the first stable release of `liquid_glass_renderer`, ready for production use.
+This is the first stable release of `liquid_glass_plus`, ready for production use.
 
 ### Breaking Changes
 
@@ -17,7 +17,7 @@ This is the first stable release of `liquid_glass_renderer`, ready for productio
 
  - **BREAKING** **REFACTOR**: removed `apple_liquid_glass` package.
 
-   This package only re-exported `liquid_glass_renderer`. Use `liquid_glass_renderer` directly.
+   This package only re-exported `liquid_glass_plus`. Use `liquid_glass_plus` directly.
 
  - **BREAKING** **REFACTOR**: `LiquidGlassSettings.flat` is now a named constructor `LiquidGlassSettings.flat()` for consistency with other presets.
 
@@ -57,7 +57,7 @@ This is the first stable release of `liquid_glass_renderer`, ready for productio
 
  - **BREAKING** **REFACTOR**: removed `apple_liquid_glass` package.
 
-   This package only re-exported `liquid_glass_renderer`. Use `liquid_glass_renderer` directly.
+   This package only re-exported `liquid_glass_plus`. Use `liquid_glass_plus` directly.
 
  - **FEAT**: added `LiquidGlassSettings.minimal()` and `LiquidGlassSettings.subtle()` presets.
 
@@ -102,7 +102,6 @@ This is the first stable release of `liquid_glass_renderer`, ready for productio
     Please read the README to understand how to use this package.
 
  - **BREAKING** **REFACTOR**: `LiquidGlassShape`s now take a simple double as radius.
- - **BREAKING** **REFACTOR**: move `blend` setting from `LiquidGlassSettings` to `LiquidGlassBlendGroup`.
  - **BREAKING** **FEAT**: adjust fake glass light intensity.
  - **BREAKING** **FEAT**: rewrote rendering pass to use two passes.
 

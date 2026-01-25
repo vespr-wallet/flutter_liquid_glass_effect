@@ -1,12 +1,12 @@
-name: liquid_glass_renderer
+name: liquid_glass_plus
 description: >-
   Create stunning liquid glass and frosted glass effects in Flutter using
   custom shaders. Supports iOS, macOS, and Android with Impeller rendering.
 version: 0.3.0
 
-homepage: https://whynotmake.it
-repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/packages/liquid_glass_renderer
-issue_tracker: https://github.com/whynotmake-it/flutter_liquid_glass/issues
+homepage: https://vespr.xyz
+repository: https://github.com/vespr-wallet/flutter_liquid_glass_plus/tree/main/packages/liquid_glass_plus
+issue_tracker: https://github.com/vespr-wallet/flutter_liquid_glass_plus/issues
 screenshots:
   - description: "A title image with three liquid glass elements"
     path: doc/screenshot.png  
@@ -23,11 +23,15 @@ environment:
   # Flutter 3.32.4+ required for RoundedSuperellipseBorder and shader fixes
   flutter: ">=3.32.4"
 
-# We only support Platforms that support Impeller.
+# Non-impeller platforms are using a shader approximation with linear transformations
+# and backdrop filters instead of custom shaders.
 platforms:
   macos:
   ios:
   android:
+  linux:
+  windows:
+  web:
 
 dependencies:
   equatable: ^2.0.7

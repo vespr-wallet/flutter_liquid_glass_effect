@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 import 'package:stupid_simple_sheet/stupid_simple_sheet.dart';
 
 Animation<double> useRotatingAnimationController() {

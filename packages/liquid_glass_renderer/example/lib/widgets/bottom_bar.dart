@@ -3,7 +3,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
 import 'package:motor/motor.dart';
 
 /// Creates a jelly transform matrix based on velocity for organic squash and stretch effect

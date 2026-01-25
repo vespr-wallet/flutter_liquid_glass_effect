@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a Flutter monorepo for implementing liquid glass/frosted glass effects in Flutter applications. The project uses Melos for managing multiple packages and requires Impeller (Flutter's new rendering engine) - Skia is not supported.
 
 **Packages:**
-- `liquid_glass_renderer`: Core package for rendering liquid glass effects with custom shaders
-- `apple_liquid_glass`: WIP wrapper that currently just re-exports `liquid_glass_renderer`
+- `liquid_glass_plus`: Core package for rendering liquid glass effects with custom shaders
+- `apple_liquid_glass`: WIP wrapper that currently just re-exports `liquid_glass_plus`
 
 **Platform Support:**
 - Supported: macOS, iOS, Android (Impeller only)
@@ -78,11 +78,9 @@ The liquid glass effect works by capturing and distorting background pixels thro
 
 1. **LiquidGlassLayer** (`lib/src/rendering/liquid_glass_layer.dart`): Container widget that manages rendering context for all glass effects within it. Creates textures covering its entire area.
 
-2. **LiquidGlass** (`lib/src/liquid_glass.dart`): Individual glass shapes that must be inside a LiquidGlassLayer. Can be standalone or grouped for blending.
+2. **LiquidGlass** (`lib/src/liquid_glass.dart`): Individual glass shapes that must be inside a LiquidGlassLayer.
 
-3. **LiquidGlassBlendGroup** (`lib/src/liquid_glass_blend_group.dart`): Groups multiple `LiquidGlass.grouped()` shapes to blend them together seamlessly (max 16 shapes).
-
-4. **Geometry Rendering** (`lib/src/internal/render_liquid_glass_geometry.dart`): Renders glass shape geometry into textures for shader processing. Caches geometry to avoid re-rendering on every frame.
+3. **Geometry Rendering** (`lib/src/internal/render_liquid_glass_geometry.dart`): Renders glass shape geometry into textures for shader processing. Caches geometry to avoid re-rendering on every frame.
 
 5. **Shader Pipeline** (`lib/src/shaders.dart` and `lib/assets/shaders/`):
    - `liquid_glass_geometry_blended.frag`: Renders blended glass geometry
@@ -103,10 +101,9 @@ The liquid glass effect works by capturing and distorting background pixels thro
 The package aggressively caches geometry in textures to minimize GPU work. However, due to [Flutter issue #138627](https://github.com/flutter/flutter/issues/138627), textures cannot be disposed immediately, causing memory spikes during animations.
 
 **When working on performance:**
-- Minimize LiquidGlassLayer and LiquidGlassBlendGroup pixel coverage
-- Limit number of blended shapes (each adds computational load)
+- Minimize LiquidGlassLayer pixel coverage
 - Cache static geometry - re-rendering on every frame is expensive
-- Moving any shape in a LiquidGlassBlendGroup forces all shapes to re-render
+- Moving shapes forces the package to re-render their glass effect every frame
 
 ## Code Generation
 
@@ -139,7 +136,7 @@ All tests must use the `--enable-impeller` flag since Skia is not supported.
 
 ## Debugging
 
-Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_renderer.dart`) to visualize geometry textures instead of the glass effect. Only works in debug mode.
+Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_plus.dart`) to visualize geometry textures instead of the glass effect. Only works in debug mode.
 
 ## Shader Development
 

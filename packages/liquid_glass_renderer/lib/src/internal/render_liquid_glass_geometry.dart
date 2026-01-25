@@ -3,10 +3,10 @@ import 'dart:ui';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/logging.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus/src/internal/snap_rect_to_pixels.dart';
+import 'package:liquid_glass_plus/src/logging.dart';
+import 'package:liquid_glass_plus/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
 
 /// The state of liquid glass geometry, used to determine if it needs to be

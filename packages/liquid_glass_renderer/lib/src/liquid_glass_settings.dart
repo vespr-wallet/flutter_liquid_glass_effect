@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_render_scope.dart';
+import 'package:liquid_glass_plus/liquid_glass_plus.dart';
+import 'package:liquid_glass_plus/src/liquid_glass_render_scope.dart';
 
 /// Configuration specific to Impeller/shader-based liquid glass rendering.
 ///

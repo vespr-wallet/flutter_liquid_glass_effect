@@ -15,20 +15,26 @@ import 'package:meta/meta.dart';
 /// Divisor for shadow width (higher = thinner). shadowWidth = thickness / this
 const kFakeGlassShadowWidthDivisor = 5.0;
 
-/// Min/max shadow width in pixels
+/// Minimum shadow width in pixels.
 const kFakeGlassShadowWidthMin = 1.0;
+
+/// Maximum shadow width in pixels.
 const kFakeGlassShadowWidthMax = 4.0;
 
 /// Divisor for shadow alpha (higher = more transparent). alpha = thickness / this
 const kFakeGlassShadowAlphaDivisor = 200.0;
 
-/// Min/max shadow alpha (0.0 - 1.0)
+/// Minimum shadow alpha (0.0 - 1.0).
 const kFakeGlassShadowAlphaMin = 0.02;
+
+/// Maximum shadow alpha (0.0 - 1.0).
 const kFakeGlassShadowAlphaMax = 0.08;
 
 // -- Specular Highlights --
-/// Min/max stroke width for sharp specular line
+/// Minimum stroke width for sharp specular line.
 const kFakeGlassSpecularStrokeMin = 2.0;
+
+/// Maximum stroke width for sharp specular line.
 const kFakeGlassSpecularStrokeMax = 2.7;
 
 /// Alpha multiplier for sharp specular (0.0 - 1.0)
@@ -56,8 +62,10 @@ const kFakeGlassEnableDepthGradient = true;
 /// Multiplier for gradient alpha based on light intensity
 const kFakeGlassDepthGradientAlphaMultiplier = .1;
 
-/// Min/max gradient alpha (0.0 - 1.0)
+/// Minimum gradient alpha (0.0 - 1.0).
 const kFakeGlassDepthGradientAlphaMin = 0.2;
+
+/// Maximum gradient alpha (0.0 - 1.0).
 const kFakeGlassDepthGradientAlphaMax = 0.9;
 
 /// Ratio for dark side alpha relative to light side (0.0 - 1.0)

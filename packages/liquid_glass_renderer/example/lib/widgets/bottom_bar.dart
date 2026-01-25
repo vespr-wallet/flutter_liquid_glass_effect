@@ -98,9 +98,7 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
             context,
           ).barBackgroundColor.withValues(alpha: 0.1),
           saturation: 1.5,
-          liquidGlassConfigs: LiquidGlassConfigs(
-            refractiveIndex: 1.21,
-          ),
+          liquidGlassConfigs: LiquidGlassConfigs(refractiveIndex: 1.21),
           fakeGlassConfigs: FakeGlassConfigs(
             forceEnabled: widget.forceFakeGlass,
           ),
@@ -310,7 +308,7 @@ class _ExtraButtonState extends State<_ExtraButton> {
           child: LiquidGlass(
             shape: const LiquidOval(),
             child: GlassGlow(
-              child: Container(
+              child: SizedBox(
                 height: widget.config.size,
                 width: widget.config.size,
                 child: Center(

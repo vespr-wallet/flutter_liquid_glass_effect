@@ -128,7 +128,7 @@ void main() async {
       .toList();
 
   for (final file in allFiles) {
-    final relativePath = file.path.replaceFirst(buildDir.path + '/', '');
+    final relativePath = file.path.replaceFirst('${buildDir.path}/', '');
     buffer.writeln('- `$relativePath`');
   }
 

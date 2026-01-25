@@ -97,7 +97,7 @@ class _SingleTestApp extends StatelessWidget {
       thickness: 40,
       frostIntensity: 20,
     );
-    final content = Container(
+    final content = SizedBox(
       width: 200,
       height: 200,
       child: const Center(

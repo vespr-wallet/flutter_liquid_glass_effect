@@ -46,6 +46,7 @@ class LiquidGlassConfigs with EquatableMixin {
       );
 
   /// Linearly interpolates between two [LiquidGlassConfigs].
+  // ignore: prefer_constructors_over_static_methods
   static LiquidGlassConfigs lerp(
     LiquidGlassConfigs a,
     LiquidGlassConfigs b,
@@ -120,6 +121,7 @@ class FakeGlassConfigs with EquatableMixin {
   /// Linearly interpolates between two [FakeGlassConfigs].
   ///
   /// Note: [forceEnabled] switches at t >= 0.5 (boolean lerp).
+  // ignore: prefer_constructors_over_static_methods
   static FakeGlassConfigs lerp(
     FakeGlassConfigs a,
     FakeGlassConfigs b,
@@ -424,6 +426,7 @@ class LiquidGlassSettings with EquatableMixin {
   ///   animationValue,
   /// );
   /// ```
+  // ignore: prefer_constructors_over_static_methods
   static LiquidGlassSettings lerp(
     LiquidGlassSettings a,
     LiquidGlassSettings b,

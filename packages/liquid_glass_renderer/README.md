@@ -37,6 +37,10 @@ A Flutter package for creating a stunning "liquid glass" or "frosted glass" effe
 -   🤸 **Stretch Effects**: Apply organic squash and stretch animations to glass widgets.
 -   🎬 **Implicit Animations**: Shape and settings changes are automatically animated (changing between shape types not yet supported).
 
+![Transitions Demo](docs/transitions.gif)
+
+*Real glass (left) and fake glass (right) with implicit transitions for frost, intensity, shape, radius, and size.*
+
 ## Installation
 
 **In order to start using Flutter Liquid Glass you must have the [Flutter SDK][flutter_install_link] installed on your machine.**

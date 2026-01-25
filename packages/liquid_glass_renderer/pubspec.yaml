@@ -5,7 +5,7 @@ description: >-
 version: 0.3.0
 
 homepage: https://vespr.xyz
-repository: https://github.com/vespr-wallet/flutter_liquid_glass_plus/tree/main/packages/liquid_glass_plus
+repository: https://github.com/vespr-wallet/flutter_liquid_glass_plus/tree/main/packages/liquid_glass_renderer
 issue_tracker: https://github.com/vespr-wallet/flutter_liquid_glass_plus/issues
 screenshots:
   - description: "A title image with three liquid glass elements"

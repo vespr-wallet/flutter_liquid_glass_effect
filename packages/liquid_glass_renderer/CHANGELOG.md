@@ -6,41 +6,41 @@ This is the first stable release of `liquid_glass_plus`, ready for production us
 
 ### Breaking Changes
 
- - **BREAKING** **REFACTOR**: removed experimental `Glassify` widget and `experimental.dart` exports.
+- **BREAKING** **REFACTOR**: removed experimental `Glassify` widget and `experimental.dart` exports.
 
-   The `Glassify` widget was marked experimental with known performance and quality issues.
-   Use `LiquidGlass` with standard shapes (RoundedRectangle, Oval, Superellipse) instead.
+  The `Glassify` widget was marked experimental with known performance and quality issues.
+  Use `LiquidGlass` with standard shapes (RoundedRectangle, Oval, Superellipse) instead.
 
- - **BREAKING** **REFACTOR**: removed experimental `LiquidGlassFilter` widget.
+- **BREAKING** **REFACTOR**: removed experimental `LiquidGlassFilter` widget.
 
-   This widget was marked as "might be completely broken" and has been removed.
+  This widget was marked as "might be completely broken" and has been removed.
 
- - **BREAKING** **REFACTOR**: removed `apple_liquid_glass` package.
+- **BREAKING** **REFACTOR**: removed `apple_liquid_glass` package.
 
-   This package only re-exported `liquid_glass_plus`. Use `liquid_glass_plus` directly.
+  This package only re-exported `liquid_glass_plus`. Use `liquid_glass_plus` directly.
 
- - **BREAKING** **REFACTOR**: `LiquidGlassSettings.flat` is now a named constructor `LiquidGlassSettings.flat()` for consistency with other presets.
+- **BREAKING** **REFACTOR**: `LiquidGlassSettings.flat` is now a named constructor `LiquidGlassSettings.flat()` for consistency with other presets.
 
 ### Features
 
- - **FEAT**: added `LiquidGlassSettings.minimal()` and `LiquidGlassSettings.subtle()` presets.
+- **FEAT**: added `LiquidGlassSettings.minimal()` and `LiquidGlassSettings.subtle()` presets.
 
-   Convenience constructors for common glass effect configurations.
+  Convenience constructors for common glass effect configurations.
 
- - **FEAT**: added implicit animations for shape and settings changes.
+- **FEAT**: added implicit animations for shape and settings changes.
 
-   Changes to `LiquidShape` and `LiquidGlassSettings` now animate smoothly by default.
-   Set `animationDuration` to `Duration.zero` to disable.
+  Changes to `LiquidShape` and `LiquidGlassSettings` now animate smoothly by default.
+  Set `animationDuration` to `Duration.zero` to disable.
 
 ### Improvements
 
- - **DOCS**: improved library documentation with quick start example.
- - **DOCS**: clarified `LiquidStretch` as optional feature with disable instructions.
- - **DOCS**: updated `LiquidRoundedSuperellipse` documentation to be platform-neutral.
- - **DOCS**: improved `glassContainsChild` documentation to clarify behavior.
- - **CHORE**: cleaned up dead shader references from codebase.
- - **CHORE**: removed debug print statements from production code.
- - **CHORE**: added parameter validation assertions.
+- **DOCS**: improved library documentation with quick start example.
+- **DOCS**: clarified `LiquidStretch` as optional feature with disable instructions.
+- **DOCS**: updated `LiquidRoundedSuperellipse` documentation to be platform-neutral.
+- **DOCS**: improved `glassContainsChild` documentation to clarify behavior.
+- **CHORE**: cleaned up dead shader references from codebase.
+- **CHORE**: removed debug print statements from production code.
+- **CHORE**: added parameter validation assertions.
 
 ## 0.2.0-dev.5
 

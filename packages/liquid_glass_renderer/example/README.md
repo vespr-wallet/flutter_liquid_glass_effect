@@ -90,6 +90,6 @@ LiquidStretch(
 ## Running the Example
 
 ```bash
-cd packages/liquid_glass_plus/example
+cd packages/liquid_glass_renderer/example
 flutter run --enable-impeller
 ```

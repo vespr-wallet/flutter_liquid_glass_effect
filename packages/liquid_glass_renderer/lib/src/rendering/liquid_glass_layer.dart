@@ -419,6 +419,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     // Always use the blur layer to avoid animation glitches when frostIntensity
     // transitions between 0 and non-zero. A sigma of 0 is a no-op for the GPU.
+    // Note: There's a known subtle displacement when transitioning between
+    // sigma=0 and sigma>0 due to Impeller's different code paths, but fixing
+    // it with a minimum sigma has significant performance cost.
     final blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
       ..backdropKey = backdropKey
       ..filter = ImageFilter.blur(

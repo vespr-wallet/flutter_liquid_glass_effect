@@ -103,8 +103,10 @@ class MultiShaderBuilder extends StatefulWidget {
   /// the underlying [ui.FragmentProgram]s - they are managed by Flutter's
   /// asset system.
   ///
-  /// After calling this method, any [MultiShaderBuilder]s will need to reload
-  /// their shaders asynchronously.
+  /// After calling this method, newly created [MultiShaderBuilder]s (or
+  /// existing ones that trigger `_loadShaders` again) will reload their shaders
+  /// asynchronously. Existing instances keep their current shaders in memory.
+  /// In-flight loads may repopulate the cache after this call.
   static void clearCache() {
     _MultiShaderBuilderState._shaderCache.clear();
   }

@@ -183,6 +183,7 @@ class _LiquidGlassState extends State<LiquidGlass>
   }
 
   void _clearAnimationState() {
+    _controller?.stop();
     _fromShape = null;
     _animatedShape = null;
   }

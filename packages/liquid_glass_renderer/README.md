@@ -15,7 +15,7 @@
 > - **Make sure your App is built on Impeller**. Skia is unsupported for now
 > - **Test thoroughly on your target devices**, especially lower-end and mid-range devices
 > - **Monitor performance metrics** (memory usage, frame rates, power consumption, jank)
-> - **Use `FakeGlass` strategically**: Swap out `LiquidGlass` widgets with `FakeGlass` when they're not highly visible, off-screen, or have low visual impact
+> - **Use `fake: true` strategically**: Set `LiquidGlassLayer(fake: true)` for layers that are not highly visible or have low visual impact
 >
 > **We need your feedback!** Please test on your devices and report performance characteristics, issues, and suggestions.
 
@@ -87,10 +87,8 @@ This package provides several widgets to create the glass effect:
 | `LiquidGlassLayer`        | Container for all liquid glass effects. Required parent for `LiquidGlass` widgets.         |
 | `LiquidGlass`             | Creates a single glass shape. Must be inside a `LiquidGlassLayer`.                         |
 | `LiquidGlassBlendGroup`   | Groups multiple `LiquidGlass.grouped` shapes to blend them together seamlessly.            |
-| `FakeGlass`               | Lightweight glass appearance without refraction. Better performance, less visual fidelity. |
 | `GlassGlow`               | Add touch-responsive glow effects to glass surfaces.                                       |
-| `LiquidStretch`           | Add interactive squash and stretch effects to glass widgets.                               |
-| `Glassify` (Experimental) | To apply a glass effect to any arbitrary widget (e.g., text, icons). Less performant.      |
+| `LiquidStretch`           | Add interactive squash and stretch effects to glass widgets (optional).                    |
 
 ### ⚠️ Limitations
 
@@ -99,7 +97,7 @@ As this is a pre-release, there are a few things to keep in mind:
 - **Only works on Impeller**, so Web, Windows, and Linux are entirely unsupported for now
 - **Memory spike when animating shapes** There is a [bug in Flutter](https://github.com/flutter/flutter/issues/138627) that prevents us from disposing generated textures immediately, leading to temporary memory spikes when animating glass shapes. Read [A word on Performance](#-a-word-on-performance) for tips on minimizing this.
 - **Maximum of 16 shapes** can be blended in a `LiquidGlassBlendGroup`, and performance will degrade significantly with the more shapes you add in the same group.
-- **Blur** introduces artifacts when blending shapes, and is entirely unsupported for `Glassify`. Upvote [this issue](https://github.com/flutter/flutter/issues/170820) to get that fixed.
+- **Blur** introduces artifacts when blending shapes. Upvote [this issue](https://github.com/flutter/flutter/issues/170820) to get that fixed.
 
 
 ### 🚨 A word on Performance
@@ -154,7 +152,7 @@ class MyGlassWidget extends StatelessWidget {
             child: LiquidGlassLayer(
               settings: const LiquidGlassSettings(
                 thickness: 20,
-                blur: 10,
+                frostIntensity: 10,
                 glassColor: Color(0x33FFFFFF),
               ),
               child: LiquidGlass(
@@ -184,7 +182,7 @@ If you need a single glass shape with custom settings and don't want to create a
 LiquidGlass.withOwnLayer(
   settings: const LiquidGlassSettings(
     thickness: 15,
-    blur: 8,
+    frostIntensity: 8,
   ),
   shape: LiquidRoundedSuperellipse(borderRadius: 30),
   child: const SizedBox.square(dimension: 100),
@@ -214,7 +212,7 @@ To blend multiple glass shapes together seamlessly, wrap them in a `LiquidGlassB
 LiquidGlassLayer(
   settings: const LiquidGlassSettings(
     thickness: 20,
-    blur: 10,
+    frostIntensity: 10,
   ),
   child: LiquidGlassBlendGroup(
     blend: 20.0, // Controls how much shapes blend together
@@ -268,7 +266,7 @@ Here's a breakdown of the key settings:
 
 -   `glassColor`: The color tint of the glass. The alpha channel controls the intensity.
 -   `thickness`: How much the glass refracts the background (higher = more distortion).
--   `blur`: Background blur strength (0 = no blur).
+-   `frostIntensity`: Background blur/frost strength (0 = no blur).
 -   `refractiveIndex`: The refractive index of the glass material (1.0 = no refraction, ~1.5 = realistic glass).
 -   `lightAngle`, `lightIntensity`: Control the direction and brightness of the virtual light source, creating highlights.
 -   `ambientStrength`: The intensity of ambient light on the glass.
@@ -279,21 +277,19 @@ Here's a breakdown of the key settings:
 
 Increasing saturation when using colored glass helps achieve an Apple-like aesthetic.
 
-### Adding Blur
+### Adding Blur (Frost)
 
-You can apply a background blur using the `blur` property in `LiquidGlassSettings`. This is independent of the glass refraction effect.
+You can apply a background blur using the `frostIntensity` property in `LiquidGlassSettings`. This is independent of the glass refraction effect.
 
 ```dart
 LiquidGlassLayer(
   settings: const LiquidGlassSettings(
-    blur: 10.0,
+    frostIntensity: 10.0,
     thickness: 20,
   ),
   child: // ... your glass widgets
 )
 ```
-
-**Note:** Blur is not supported in `Glassify` due to performance constraints.
 
 ### Child Placement
 
@@ -302,41 +298,29 @@ The `child` of a `LiquidGlass` widget can be rendered either "inside" the glass 
 -   `glassContainsChild: false` (default): The child is rendered normally on top of the glass effect.
 -   `glassContainsChild: true`: The child is part of the glass, affected by color tint and refraction.
 
-### `FakeGlass`: Lightweight Glass Alternative
+### Fake Glass Mode: Lightweight Alternative
 
-For scenarios where performance is critical or you need a glass-like appearance without the computational cost of refraction, use `FakeGlass`. It provides a similar visual effect using backdrop filters instead of shaders.
-
-```dart
-FakeGlass(
-  shape: LiquidRoundedSuperellipse(
-    borderRadius: 20,
-  ),
-  settings: const LiquidGlassSettings(
-    blur: 10,
-    glassColor: Color(0x33FFFFFF),
-  ),
-  child: const SizedBox(
-    height: 100,
-    width: 100,
-    child: Center(child: Text('Fast Glass')),
-  ),
-)
-```
-
-Alternatively, you can enable fake glass for an entire layer:
+For scenarios where performance is critical or you need a glass-like appearance without the computational cost of refraction, enable fake glass mode on the layer. It provides a similar visual effect using backdrop filters instead of shaders.
 
 ```dart
 LiquidGlassLayer(
   fake: true,
   settings: const LiquidGlassSettings(
-    blur: 10,
+    frostIntensity: 10,
     glassColor: Color(0x33FFFFFF),
   ),
-  child: // ... your glass widgets will automatically use FakeGlass
+  child: LiquidGlass(
+    shape: LiquidRoundedSuperellipse(borderRadius: 20),
+    child: const SizedBox(
+      height: 100,
+      width: 100,
+      child: Center(child: Text('Fast Glass')),
+    ),
+  ),
 )
 ```
 
-**Note:** `FakeGlass` does not support `thickness` or `refractiveIndex` properties since it doesn't perform actual refraction.
+**Note:** Fake glass mode ignores `refractiveIndex`; `thickness` only affects faux lighting/edge effects, not true refraction.
 
 ### `GlassGlow`: Interactive Touch Effects
 
@@ -385,54 +369,6 @@ LiquidStretch(
 ```
 
 The widget listens to drag gestures and applies smooth squash and stretch transformations without interfering with other gestures.
-
-
-### `Glassify`: Glass Effect on Any Shape (Experimental)
-
-
-
-> ⚠️ `Glassify` is experimental. It is significantly less performant and will produce lower-quality results than `LiquidGlass`. 
->
-> **Don't use it in production unless you have clearly tested and validated it on your target devices.**
-> 
-> **Never use it for primitive shapes that could be rendered with `LiquidGlass`!**
-
-![Glassify Demo](doc/clock.gif)
-
-The `Glassify` widget can apply the glass effect to any child widget, not just a predefined shape. This is useful for text, icons, or custom-painted widgets.
-
-Apple themselves barely use this effect, one of their uses is the time on the lock screen. 
-To make it look best, consider a few key tips:
-
-- Try to limit the use of these widgets on each screen, to keep the performance good
-- **Note: Blur is not supported in `Glassify`** due to performance constraints. The shader has been optimized to remove blur to improve mobile GPU performance.
-- The algorithm often falls apart for high thicknesses, try to keep it below 20px for best results
-- Depending on the shape, you might need to adjust `lightIntensity` and `ambientStrength` to make it look best
-- Colors help maintain readability
-
-```dart
-// Important: You need to import from experimental.dart
-import 'package:liquid_glass_renderer/experimental.dart';
-
-Center(
-  child: Glassify(
-    settings: const LiquidGlassSettings(
-      thickness: 5,
-      glassColor: Color(0x33FFFFFF),
-    ),
-    child: const Text(
-      'Liquid',
-      style: TextStyle(
-        fontSize: 120,
-        fontWeight: FontWeight.bold,
-        color: Colors.black,
-      ),
-    ),
-  ),
-)
-```
-
----
 
 ---
 

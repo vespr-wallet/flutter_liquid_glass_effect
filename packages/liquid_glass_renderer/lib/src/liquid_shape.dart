@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
@@ -32,9 +34,68 @@ sealed class LiquidShape extends OutlinedBorder with EquatableMixin {
 
   @override
   List<Object?> get props => [side];
+
+  /// Linearly interpolates between two [LiquidShape]s.
+  ///
+  /// The [t] parameter represents the interpolation progress from 0.0 to 1.0,
+  /// where 0.0 returns [a] and 1.0 returns [b].
+  ///
+  /// **Same-type shapes**: Parameters are interpolated smoothly.
+  /// - [LiquidRoundedSuperellipse] to [LiquidRoundedSuperellipse]: borderRadius lerps
+  /// - [LiquidRoundedRectangle] to [LiquidRoundedRectangle]: borderRadius lerps
+  /// - [LiquidOval] to [LiquidOval]: returns as-is (no parameters)
+  ///
+  /// **Different-type shapes**: Returns [a] for t < 0.5, [b] for t >= 0.5.
+  /// For smooth cross-type transitions, consider path morphing techniques.
+  ///
+  /// Returns null if both [a] and [b] are null.
+  ///
+  /// Example:
+  /// ```dart
+  /// final shape = LiquidShape.lerp(
+  ///   LiquidRoundedSuperellipse(borderRadius: 8),
+  ///   LiquidRoundedSuperellipse(borderRadius: 32),
+  ///   0.5,
+  /// ); // borderRadius: 20
+  /// ```
+  static LiquidShape? lerp(LiquidShape? a, LiquidShape? b, double t) {
+    if (a == null && b == null) return null;
+    if (a == null) return b;
+    if (b == null) return a;
+
+    // Same-type interpolation
+    if (a is LiquidRoundedSuperellipse && b is LiquidRoundedSuperellipse) {
+      return LiquidRoundedSuperellipse(
+        borderRadius: ui.lerpDouble(a.borderRadius, b.borderRadius, t)!,
+        side: BorderSide.lerp(a.side, b.side, t),
+      );
+    }
+
+    if (a is LiquidRoundedRectangle && b is LiquidRoundedRectangle) {
+      return LiquidRoundedRectangle(
+        borderRadius: ui.lerpDouble(a.borderRadius, b.borderRadius, t)!,
+        side: BorderSide.lerp(a.side, b.side, t),
+      );
+    }
+
+    if (a is LiquidOval && b is LiquidOval) {
+      return LiquidOval(
+        side: BorderSide.lerp(a.side, b.side, t),
+      );
+    }
+
+    // Cross-type: discrete switch at t >= 0.5
+    // For smooth cross-type transitions, use LiquidMorphShape instead
+    return t < 0.5 ? a : b;
+  }
 }
 
-/// Represents a squircle shape that can be used by a [LiquidGlass] widget.
+/// A smooth, continuous-curvature rounded shape (superellipse/squircle).
+///
+/// Unlike [LiquidRoundedRectangle] which has abrupt transitions between
+/// straight edges and circular corners, this shape uses a superellipse
+/// curve that smoothly blends the corners into the edges, creating a
+/// more organic, pill-like appearance.
 ///
 /// Works like a [RoundedSuperellipseBorder].
 class LiquidRoundedSuperellipse extends LiquidShape {

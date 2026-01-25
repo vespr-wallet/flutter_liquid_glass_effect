@@ -5,8 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_shaders/flutter_shaders.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/internal/snap_rect_to_pixels.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/logging.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:meta/meta.dart';
@@ -32,29 +30,46 @@ enum LiquidGlassGeometryState {
 
 /// A base class for any render object that represents liquid glass geometry.
 ///
-/// This will paint to the screen normally, but use a [GlassGroupLink] to gather
-/// shape information and generate a geometry matte using the provided
+/// This manages geometry rendering and caching for liquid glass shapes.
+/// Each shape independently manages its own geometry matte using the provided
 /// [geometryShader].
 @internal
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Creates a new [RenderLiquidGlassGeometry] with the given
   /// [geometryShader].
+  ///
+  /// The [geometryShader] is optional - when null, only path-based geometry
+  /// is created (used for fake glass rendering).
   RenderLiquidGlassGeometry({
     required GeometryRenderLink renderLink,
-    required this.geometryShader,
+    required FragmentShader? geometryShader,
     required LiquidGlassSettings settings,
     required double devicePixelRatio,
-  })  : _renderLink = renderLink,
+  })  : _geometryShader = geometryShader,
+        _renderLink = renderLink,
         _settings = settings,
         _devicePixelRatio = devicePixelRatio {
-    updateShaderWithSettings(settings, devicePixelRatio);
+    if (geometryShader != null) {
+      updateShaderWithSettings(settings, devicePixelRatio);
+    }
   }
 
   /// The logger for liquid glass geometry.
   final Logger logger = Logger(LgrLogNames.geometry);
 
   /// The shader that generates the geometry matte.
-  final FragmentShader geometryShader;
+  /// When null, only path-based geometry is created (for fake glass).
+  FragmentShader? _geometryShader;
+  FragmentShader? get geometryShader => _geometryShader;
+  set geometryShader(FragmentShader? value) {
+    if (_geometryShader == value) return;
+    _geometryShader = value;
+    if (value != null) {
+      updateShaderWithSettings(settings, devicePixelRatio);
+    }
+    markGeometryNeedsUpdate(force: true);
+    markNeedsPaint();
+  }
 
   LiquidGlassSettings? _settings;
 
@@ -72,7 +87,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     }
 
     _settings = value;
-    updateShaderWithSettings(value, _devicePixelRatio);
+    if (_geometryShader != null) {
+      updateShaderWithSettings(value, _devicePixelRatio);
+    }
     markNeedsPaint();
   }
 
@@ -86,7 +103,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (_devicePixelRatio == value) return;
     _devicePixelRatio = value;
     markGeometryNeedsUpdate(force: true);
-    updateShaderWithSettings(settings, value);
+    if (_geometryShader != null) {
+      updateShaderWithSettings(settings, value);
+    }
     markNeedsPaint();
   }
 
@@ -186,7 +205,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     final path = Path();
     for (final shape in geometries) {
       path.addPath(
-        shape.renderObject.getPath(),
+        shape.renderObject.getShapePath(),
         Offset.zero,
         matrix4: shape.shapeToGeometry?.storage,
       );
@@ -202,7 +221,12 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
 
-    if (geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
+    // For path-only geometry (fake glass), we can skip the matte-based
+    // optimizations since there's no matte to reuse.
+    final hasShader = _geometryShader != null;
+
+    if (hasShader &&
+        geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
         !anyShapeChangedInLayer &&
         geometry != null) {
       logger.finer('$hashCode Skipping geometry rebuild.');
@@ -232,14 +256,24 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       snappedBounds.height * devicePixelRatio,
     ).snapToPixels(1);
 
-    // Set the new geometry
-    final newGeo = geometry = UnrenderedGeometryCache(
-      matte: _buildGeometryPicture(snappedBounds, shapes),
-      bounds: snappedBounds,
-      matteBounds: matteBounds,
-      shapes: shapes,
-      path: getPath(shapes),
-    );
+    // Set the new geometry - use PathOnlyGeometryCache when no shader
+    final GeometryCache newGeo;
+    if (hasShader) {
+      newGeo = geometry = UnrenderedGeometryCache(
+        matte: _buildGeometryPicture(snappedBounds, shapes),
+        bounds: snappedBounds,
+        matteBounds: matteBounds,
+        shapes: shapes,
+        path: getPath(shapes),
+      );
+    } else {
+      newGeo = geometry = PathOnlyGeometryCache(
+        bounds: snappedBounds,
+        matteBounds: matteBounds,
+        shapes: shapes,
+        path: getPath(shapes),
+      );
+    }
 
     // We have updated the geometry.
     _renderLink?.markRebuilt(this);
@@ -255,7 +289,10 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     final width = (bounds.width * devicePixelRatio).ceil();
     final height = (bounds.height * devicePixelRatio).ceil();
 
-    geometryShader.setFloatUniforms((value) {
+    // geometryShader is guaranteed non-null when this method is called
+    // (checked in maybeRebuildGeometry)
+    final shader = _geometryShader!;
+    shader.setFloatUniforms((value) {
       value
         ..setFloat(width.toDouble())
         ..setFloat(height.toDouble());
@@ -265,7 +302,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
     final recorder = PictureRecorder();
     final canvas = Canvas(recorder);
-    final paint = Paint()..shader = geometryShader;
+    final paint = Paint()..shader = shader;
 
     final leftPixel = (geometryBounds.left * devicePixelRatio).roundToDouble();
     final topPixel = (geometryBounds.top * devicePixelRatio).roundToDouble();
@@ -409,6 +446,41 @@ class RenderedGeometryCache extends GeometryCache {
   }
 }
 
+/// A geometry cache that only contains path and bounds, without a matte.
+///
+/// Used for fake glass rendering where no shader-based matte is needed.
+@immutable
+@internal
+class PathOnlyGeometryCache extends GeometryCache {
+  const PathOnlyGeometryCache({
+    required super.matteBounds,
+    required super.bounds,
+    required super.shapes,
+    required super.path,
+  });
+
+  @override
+  RenderedGeometryCache render() {
+    // PathOnlyGeometryCache doesn't need rendering, but we need to satisfy
+    // the interface. Create a minimal placeholder.
+    throw UnsupportedError(
+      'PathOnlyGeometryCache cannot be rendered - it has no matte.',
+    );
+  }
+
+  @override
+  Future<RenderedGeometryCache> renderAsync() => Future.error(
+        UnsupportedError(
+          'PathOnlyGeometryCache cannot be rendered - it has no matte.',
+        ),
+      );
+
+  @override
+  void dispose() {
+    // Nothing to dispose - no matte image
+  }
+}
+
 extension on LiquidGlassSettings {
   bool requiresGeometryRebuild(LiquidGlassSettings? other) {
     if (other == null) return false;
@@ -441,10 +513,19 @@ enum RawShapeType {
   }
 }
 
+/// Mixin for render objects that can provide a path for their shape.
+///
+/// This is used by [ShapeGeometry] to get the path of a shape.
+@internal
+mixin LiquidGlassShapeMixin on RenderObject {
+  /// Returns the path of this shape in local coordinates.
+  Path getShapePath();
+}
+
 /// The geometry of a single shape.
 ///
-/// Can be part of multiple blended shapes in [RenderLiquidGlassGeometry], or on
-/// its own.
+/// Used by [RenderLiquidGlassGeometry] to track shape information for
+/// geometry rendering.
 @internal
 class ShapeGeometry extends Equatable {
   ShapeGeometry({
@@ -452,6 +533,7 @@ class ShapeGeometry extends Equatable {
     required this.shape,
     required this.glassContainsChild,
     required this.shapeBounds,
+    required this.frosted,
     this.shapeToGeometry,
   })  : rawCornerRadius = _getRadiusFromGlassShape(shape),
         rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
@@ -467,7 +549,8 @@ class ShapeGeometry extends Equatable {
     }
   }
 
-  final RenderLiquidGlass renderObject;
+  /// The render object that owns this shape.
+  final LiquidGlassShapeMixin renderObject;
 
   final LiquidShape shape;
 
@@ -476,6 +559,9 @@ class ShapeGeometry extends Equatable {
   final double rawCornerRadius;
 
   final bool glassContainsChild;
+
+  /// Whether this shape should apply backdrop blur (frosted glass).
+  final bool frosted;
 
   /// Bounds in geometry-local coordinates (for painting)
   final Rect shapeBounds;
@@ -488,5 +574,6 @@ class ShapeGeometry extends Equatable {
         shape,
         glassContainsChild,
         shapeBounds,
+        frosted,
       ];
 }

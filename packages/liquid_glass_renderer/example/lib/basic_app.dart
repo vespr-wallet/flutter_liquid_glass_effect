@@ -6,6 +6,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/shared.dart';
 import 'package:liquid_glass_renderer_example/widgets/bottom_bar.dart';
+import 'package:liquid_glass_renderer_example/widgets/transition_examples.dart';
 import 'package:rivership/rivership.dart';
 
 void main() {
@@ -15,8 +16,6 @@ void main() {
 final settingsNotifier = ValueNotifier(
   LiquidGlassSettings(glassColor: Colors.white.withValues(alpha: 0.2)),
 );
-
-final blendNotifier = ValueNotifier(10.0);
 
 class BasicApp extends HookWidget {
   const BasicApp({super.key});
@@ -31,7 +30,6 @@ class BasicApp extends HookWidget {
     return GestureDetector(
       onTap: () {
         SettingsSheet(
-          blendNotifier: blendNotifier,
           settingsNotifier: settingsNotifier,
           lightAngleAnimation: light,
         ).show(context);
@@ -71,36 +69,57 @@ class BasicApp extends HookWidget {
             ),
             Center(
               child: ListenableBuilder(
-                listenable: Listenable.merge([
-                  settingsNotifier,
-                  light,
-                  blendNotifier,
-                ]),
+                listenable: Listenable.merge([settingsNotifier, light]),
                 builder: (context, child) {
                   final settings = settingsNotifier.value.copyWith(
-                    glassColor: CupertinoTheme.of(
-                      context,
-                    ).barBackgroundColor.withValues(alpha: 0.2),
+                    glassColor: Colors.white24,
+                    fakeGlassRefraction: 5.0,
+                    fakeGlassRefractionFrostedMultiplier: 1.5,
                   );
                   return LiquidGlassLayer(
                     fake: fake.value,
                     settings: settings.copyWith(lightAngle: light.value),
-                    child: LiquidGlassBlendGroup(
-                      blend: blendNotifier.value,
-                      child: Column(
-                        spacing: 16,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            spacing: 16,
-                            children: [
-                              LiquidStretch(
-                                child: LiquidGlass.grouped(
-                                  shape: LiquidRoundedSuperellipse(
-                                    borderRadius: 20,
+                    child: Column(
+                      spacing: 16,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: 16,
+                          children: [
+                            LiquidStretch(
+                              child: LiquidGlass(
+                                frosted: false,
+                                debugLabel: 'noFrost',
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: 20,
+                                ),
+                                child: GlassGlow(
+                                  child: SizedBox.square(
+                                    dimension: 100,
+                                    child: Center(
+                                      child: fake.value
+                                          ? Text(
+                                              'FAKE no frost',
+                                              textAlign: TextAlign.center,
+                                            )
+                                          : Text(
+                                              'REAL no frost',
+                                              textAlign: TextAlign.center,
+                                            ),
+                                    ),
                                   ),
-                                  child: GlassGlow(
+                                ),
+                              ),
+                            ),
+                            LiquidStretch(
+                              child: LiquidGlass(
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: 20,
+                                ),
+                                child: GlassGlow(
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
                                     child: SizedBox.square(
                                       dimension: 100,
                                       child: Center(
@@ -112,51 +131,31 @@ class BasicApp extends HookWidget {
                                   ),
                                 ),
                               ),
-                              LiquidStretch(
-                                child: LiquidGlass.grouped(
-                                  shape: LiquidRoundedSuperellipse(
-                                    borderRadius: 20,
-                                  ),
-                                  child: GlassGlow(
-                                    child: GestureDetector(
-                                      behavior: HitTestBehavior.opaque,
-                                      child: SizedBox.square(
-                                        dimension: 100,
-                                        child: Center(
-                                          child: fake.value
-                                              ? Text('FAKE')
-                                              : Text('REAL'),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          LiquidStretch(
-                            child: LiquidGlass.grouped(
-                              shape: LiquidRoundedSuperellipse(
-                                borderRadius: 9000,
-                              ),
-                              child: GlassGlow(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  child: SizedBox(
-                                    width: 400,
-                                    height: 64,
-                                    child: Center(
-                                      child: fake.value
-                                          ? Text('FAKE')
-                                          : Text('REAL'),
-                                    ),
+                            ),
+                          ],
+                        ),
+                        LiquidStretch(
+                          child: LiquidGlass(
+                            shape: LiquidRoundedSuperellipse(
+                              borderRadius: 9000,
+                            ),
+                            child: GlassGlow(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                child: SizedBox(
+                                  width: 400,
+                                  height: 64,
+                                  child: Center(
+                                    child: fake.value
+                                        ? Text('FAKE')
+                                        : Text('REAL'),
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -173,10 +172,7 @@ class BasicApp extends HookWidget {
                     onTap: () {
                       Navigator.of(context).push(
                         CupertinoPageRoute(
-                          builder: (context) => CupertinoPageScaffold(
-                            child: SizedBox(),
-                            navigationBar: CupertinoNavigationBar.large(),
-                          ),
+                          builder: (context) => const TransitionExamplesPage(),
                         ),
                       );
                     },

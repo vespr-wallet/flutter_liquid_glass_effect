@@ -1,18 +1,39 @@
 /// Liquid Glass Effect for Flutter
+///
+/// A high-performance glass/frosted effect renderer using custom shaders.
+/// Real glass mode requires Impeller; on Skia it falls back to fake glass
+/// (backdrop-filter-based) rendering, or when `LiquidGlassLayer(fake: true)`.
+///
+/// ## Quick Start
+///
+/// ```dart
+/// LiquidGlassLayer(
+///   child: LiquidGlass(
+///     shape: LiquidRoundedRectangle(borderRadius: 20),
+///     child: Container(width: 100, height: 100),
+///   ),
+/// )
+/// ```
+///
+/// ## Optional Features
+///
+/// - `LiquidStretch` - Squash/stretch on drag (not required for basic glass)
 library liquid_glass_renderer;
 
 import 'package:flutter/foundation.dart' show kDebugMode;
 
-export 'src/fake_glass.dart' show FakeGlass;
 export 'src/glass_glow.dart' show GlassGlow, GlassGlowLayer;
 export 'src/liquid_glass.dart' show LiquidGlass;
-export 'src/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;
 export 'src/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/liquid_shape.dart';
 export 'src/logging.dart' show LgrLogs;
 export 'src/rendering/liquid_glass_layer.dart' show LiquidGlassLayer;
 export 'src/stretch.dart'
-    show LiquidStretch, OffsetResistanceExtension, RawLiquidStretch;
+    show
+        LiquidStretch,
+        LiquidTransform,
+        OffsetResistanceExtension,
+        RawLiquidStretch;
 
 /// Whether to paint the liquid glass geometry texture for debugging purposes.
 ///

@@ -91,66 +91,63 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
         LiquidGlassSettings(
           refractiveIndex: 1.21,
           thickness: 30,
-          blur: 8,
+          frostIntensity: 8,
           saturation: 1.5,
           lightIntensity: isDark ? .7 : 1,
           ambientStrength: isDark ? .2 : .5,
           lightAngle: math.pi / 4,
           glassColor: CupertinoTheme.of(
             context,
-          ).barBackgroundColor.withValues(alpha: 0.6),
+          ).barBackgroundColor.withValues(alpha: 0.1),
         );
 
     return LiquidGlassLayer(
       settings: glassSettings,
       fake: widget.fake,
-      child: LiquidGlassBlendGroup(
-        blend: 10,
-        child: Padding(
-          padding: EdgeInsets.only(
-            right: widget.horizontalPadding,
-            left: widget.horizontalPadding,
-            bottom: widget.bottomPadding,
-            top: widget.bottomPadding,
-          ),
-          child: Row(
-            spacing: widget.spacing,
-            children: [
-              Expanded(
-                child: _TabIndicator(
-                  fake: widget.fake,
-                  visible: widget.showIndicator,
-                  tabIndex: widget.selectedIndex,
-                  tabCount: widget.tabs.length,
-                  indicatorColor: widget.indicatorColor,
-                  onTabChanged: widget.onTabSelected,
-                  child: LiquidGlass.grouped(
-                    clipBehavior: Clip.none,
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 32),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      height: widget.barHeight,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          for (var i = 0; i < widget.tabs.length; i++)
-                            Expanded(
-                              child: _BottomBarTab(
-                                tab: widget.tabs[i],
-                                selected: widget.selectedIndex == i,
-                                onTap: () => widget.onTabSelected(i),
-                              ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          right: widget.horizontalPadding,
+          left: widget.horizontalPadding,
+          bottom: widget.bottomPadding,
+          top: widget.bottomPadding,
+        ),
+        child: Row(
+          spacing: widget.spacing,
+          children: [
+            Expanded(
+              child: _TabIndicator(
+                fake: widget.fake,
+                visible: widget.showIndicator,
+                tabIndex: widget.selectedIndex,
+                tabCount: widget.tabs.length,
+                indicatorColor: widget.indicatorColor,
+                onTabChanged: widget.onTabSelected,
+                child: LiquidGlass(
+                  clipBehavior: Clip.none,
+                  shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    height: widget.barHeight,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        for (var i = 0; i < widget.tabs.length; i++)
+                          Expanded(
+                            child: _BottomBarTab(
+                              tab: widget.tabs[i],
+                              selected: widget.selectedIndex == i,
+                              onTap: () => widget.onTabSelected(i),
                             ),
-                        ],
-                      ),
+                          ),
+                      ],
                     ),
                   ),
                 ),
               ),
-              if (widget.extraButton != null)
-                _ExtraButton(config: widget.extraButton!, fake: widget.fake),
-            ],
-          ),
+            ),
+            if (widget.extraButton != null)
+              _ExtraButton(config: widget.extraButton!, fake: widget.fake),
+          ],
         ),
       ),
     );
@@ -307,7 +304,7 @@ class _ExtraButtonState extends State<_ExtraButton> {
         child: Semantics(
           button: true,
           label: widget.config.label,
-          child: LiquidGlass.grouped(
+          child: LiquidGlass(
             shape: const LiquidOval(),
             child: GlassGlow(
               child: Container(
@@ -570,23 +567,26 @@ class _TabIndicatorState extends State<_TabIndicator>
                       alignment: alignment,
                       thickness: thickness,
                       child: LiquidGlass.withOwnLayer(
-                        fake: widget.fake,
+                        fake: true,
                         settings: LiquidGlassSettings(
+                          // thickness is animated
                           visibility: thickness,
+                          // disable refraction and saturation
+                          // because it flickers during animation (Impeller BUG?)
+                          // see: docs/flutter_backdrop_filter_layer_flicker.md
+                          fakeGlassRefraction: 0,
+                          saturation: 1.0,
                           glassColor: Color.from(
                             alpha: .1,
                             red: 1,
                             green: 1,
                             blue: 1,
                           ),
-                          saturation: 1.5,
-                          refractiveIndex: 1.15,
-                          thickness: 20,
+                          thickness: 4,
                           lightIntensity: 2,
                           chromaticAberration: .5,
-                          blur: 0,
+                          frostByDefault: false,
                         ),
-
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,
                         ),
@@ -647,14 +647,14 @@ class _IndicatorTransform extends StatelessWidget {
                 ),
                 value: velocity,
                 builder: (context, velocity, child) {
-                  return Transform(
+                  return LiquidTransform(
                     alignment: Alignment.center,
                     transform: buildJellyTransform(
                       velocity: Offset(velocity, 0),
                       maxDistortion: .8,
                       velocityScale: 10,
                     ),
-                    child: child,
+                    child: child!,
                   );
                 },
                 child: child,

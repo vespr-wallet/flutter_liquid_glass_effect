@@ -41,7 +41,7 @@ abstract class LgrLogs {
   /// Initializes all the available loggers.
   ///
   /// To control which loggers are initialized, use [LgrLogs.initLoggers].
-  static void initAllLogs([Level level = Level.ALL]) {
+  static void initAllLogs([Level level = Level.INFO]) {
     initLoggers({_root}, level);
   }
 

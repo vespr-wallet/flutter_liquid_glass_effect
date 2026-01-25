@@ -6,11 +6,58 @@ import 'package:liquid_glass_renderer/src/internal/glass_drag_builder.dart';
 import 'package:meta/meta.dart';
 import 'package:motor/motor.dart';
 
+/// Provides the current transform state applied by [LiquidStretch] or
+/// [LiquidTransform].
+///
+/// This is used internally to compensate for transform when
+/// calculating refraction filter coordinates.
+@internal
+class LiquidStretchScale extends InheritedWidget {
+  /// Creates a [LiquidStretchScale] with the given parameters.
+  const LiquidStretchScale({
+    required this.scale,
+    required this.isTransforming,
+    required super.child,
+    super.key,
+  });
+
+  /// The current scale factor (1.0 = no scale).
+  final double scale;
+
+  /// Whether any transform is currently being applied (scale or stretch).
+  final bool isTransforming;
+
+  /// Returns whether any transform is active from the nearest
+  /// [LiquidStretchScale] ancestor.
+  static bool isCurrentlyTransforming(BuildContext context) {
+    final widget =
+        context.dependOnInheritedWidgetOfExactType<LiquidStretchScale>();
+    return widget?.isTransforming ?? false;
+  }
+
+  @override
+  bool updateShouldNotify(LiquidStretchScale oldWidget) {
+    return scale != oldWidget.scale ||
+        isTransforming != oldWidget.isTransforming;
+  }
+}
+
 /// A widget that provides a squash and stretch effect to its child based on
 /// user interaction.
 ///
 /// Will listen to drag gestures from the user without interfering with other
 /// gestures.
+///
+/// ## Optional Feature
+///
+/// LiquidStretch is completely optional and not required for basic glass
+/// effects. To disable the stretch effect:
+///
+/// - Simply don't wrap your widgets with LiquidStretch, OR
+/// - Set `stretch: 0` and `interactionScale: 1.0` to create a no-op wrapper
+///
+/// When both `stretch` is 0 and `interactionScale` is 1.0, this widget
+/// returns its child directly without any transformation overhead.
 class LiquidStretch extends StatelessWidget {
   /// Creates a new [LiquidStretch] widget with the given [child],
   /// [interactionScale], and [stretch].
@@ -69,29 +116,36 @@ class LiquidStretch extends StatelessWidget {
 
     return GlassDragBuilder(
       behavior: hitTestBehavior,
-      builder: (context, value, child) {
-        final scale = value == null ? 1.0 : interactionScale;
+      builder: (context, dragValue, child) {
+        final scale = dragValue == null ? 1.0 : interactionScale;
         return SingleMotionBuilder(
           value: scale,
           motion: const Motion.smoothSpring(
             duration: Duration(milliseconds: 300),
             snapToEnd: true,
           ),
-          builder: (context, value, child) => Transform.scale(
-            scale: value,
-            child: child,
-          ),
-          child: MotionBuilder(
-            value: value?.withResistance(resistance) ?? Offset.zero,
-            motion: value == null
+          builder: (context, animatedScale, _) => MotionBuilder(
+            value: dragValue?.withResistance(resistance) ?? Offset.zero,
+            motion: dragValue == null
                 ? const Motion.bouncySpring(snapToEnd: true)
                 : const Motion.interactiveSpring(snapToEnd: true),
             converter: const OffsetMotionConverter(),
-            builder: (context, value, child) => RawLiquidStretch(
-              stretchPixels: value * stretch,
-              child: child,
-            ),
-            child: child,
+            builder: (context, stretchOffset, _) {
+              // Transform is active if scale != 1 OR stretch != zero
+              final isTransforming =
+                  animatedScale != 1.0 || stretchOffset != Offset.zero;
+              return LiquidStretchScale(
+                scale: animatedScale,
+                isTransforming: isTransforming,
+                child: Transform.scale(
+                  scale: animatedScale,
+                  child: RawLiquidStretch(
+                    stretchPixels: stretchOffset * stretch,
+                    child: child,
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -287,5 +341,111 @@ extension OffsetResistanceExtension on Offset {
     final scale = resistedMagnitude / magnitude;
 
     return Offset(dx * scale, dy * scale);
+  }
+}
+
+/// A [Transform] wrapper that automatically signals transform state for
+/// correct refraction coordinate handling in fake glass mode.
+///
+/// Use this instead of [Transform] when applying transforms to widgets
+/// containing LiquidGlass with fake mode enabled.
+///
+/// When [transform] is not identity, this widget wraps its child with
+/// [LiquidStretchScale] to signal that local coordinates should be used
+/// for refraction calculations.
+///
+/// ```dart
+/// LiquidTransform(
+///   transform: Matrix4.rotationZ(0.1),
+///   child: LiquidGlass(...),
+/// )
+/// ```
+class LiquidTransform extends StatefulWidget {
+  /// Creates a [LiquidTransform] with the given [transform] matrix.
+  const LiquidTransform({
+    required this.transform,
+    required this.child,
+    this.origin,
+    this.alignment,
+    this.transformHitTests = true,
+    this.filterQuality,
+    super.key,
+  });
+
+  /// The matrix to transform the child by.
+  final Matrix4 transform;
+
+  /// The origin of the coordinate system for the transform.
+  final Offset? origin;
+
+  /// The alignment of the origin, relative to the size of the box.
+  final AlignmentGeometry? alignment;
+
+  /// Whether to apply the transformation when performing hit tests.
+  final bool transformHitTests;
+
+  /// The filter quality for images affected by the transform.
+  final FilterQuality? filterQuality;
+
+  /// The widget below this widget in the tree.
+  final Widget child;
+
+  @override
+  State<LiquidTransform> createState() => _LiquidTransformState();
+}
+
+class _LiquidTransformState extends State<LiquidTransform> {
+  bool _isTransforming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isTransforming = !_isIdentity(widget.transform);
+  }
+
+  @override
+  void didUpdateWidget(LiquidTransform oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.transform != oldWidget.transform) {
+      _isTransforming = !_isIdentity(widget.transform);
+    }
+  }
+
+  /// Whether the given transform matrix is the identity matrix.
+  static bool _isIdentity(Matrix4 transform) {
+    return transform.storage[0] == 1.0 &&
+        transform.storage[1] == 0.0 &&
+        transform.storage[2] == 0.0 &&
+        transform.storage[3] == 0.0 &&
+        transform.storage[4] == 0.0 &&
+        transform.storage[5] == 1.0 &&
+        transform.storage[6] == 0.0 &&
+        transform.storage[7] == 0.0 &&
+        transform.storage[8] == 0.0 &&
+        transform.storage[9] == 0.0 &&
+        transform.storage[10] == 1.0 &&
+        transform.storage[11] == 0.0 &&
+        transform.storage[12] == 0.0 &&
+        transform.storage[13] == 0.0 &&
+        transform.storage[14] == 0.0 &&
+        transform.storage[15] == 1.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Always wrap with LiquidStretchScale to avoid tree changes that cause
+    // visual flicker when transitioning between transform/no-transform states.
+    return LiquidStretchScale(
+      scale: 1,
+      isTransforming: _isTransforming,
+      child: Transform(
+        transform: widget.transform,
+        origin: widget.origin,
+        alignment: widget.alignment,
+        transformHitTests: widget.transformHitTests,
+        filterQuality: widget.filterQuality,
+        child: widget.child,
+      ),
+    );
   }
 }

@@ -8,9 +8,6 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   await MultiShaderBuilder.precacheShaders([
     ShaderKeys.blendedGeometry,
     ShaderKeys.liquidGlassRender,
-    ShaderKeys.lighting,
-    ShaderKeys.liquidGlassFilterShader,
-    ShaderKeys.glassify,
   ]);
 
   return AlchemistConfig.runWithConfig(

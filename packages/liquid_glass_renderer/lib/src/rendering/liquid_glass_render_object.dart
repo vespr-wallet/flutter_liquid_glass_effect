@@ -19,20 +19,29 @@ import 'package:meta/meta.dart';
 abstract class LiquidGlassRenderObject extends RenderProxyBox {
   LiquidGlassRenderObject({
     required GeometryRenderLink link,
-    required this.renderShader,
+    required FragmentShader? renderShader,
     required LiquidGlassSettings settings,
     required double devicePixelRatio,
     required BackdropKey? backdropKey,
-  })  : _settings = settings,
+  })  : _renderShader = renderShader,
+        _settings = settings,
         _devicePixelRatio = devicePixelRatio,
         _backdropKey = backdropKey,
         _link = link {
+    logger.info('Setting backdrop key to $backdropKey');
     _updateShaderSettings();
   }
 
   static final logger = Logger(LgrLogNames.render);
 
-  final FragmentShader renderShader;
+  FragmentShader? _renderShader;
+  FragmentShader? get renderShader => _renderShader;
+  set renderShader(FragmentShader? value) {
+    if (_renderShader == value) return;
+    _renderShader = value;
+    _updateShaderSettings();
+    markNeedsPaint();
+  }
 
   /// The size that the geometry texture should have.
   Size get desiredMatteSize;
@@ -100,7 +109,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   void _updateShaderSettings() {
-    renderShader.setFloatUniforms(initialIndex: 6, (value) {
+    final shader = renderShader;
+    if (shader == null) return;
+    shader.setFloatUniforms(initialIndex: 6, (value) {
       value
         ..setColor(settings.effectiveGlassColor)
         ..setFloats([
@@ -214,19 +225,29 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       );
     } else {
       if (_geometryImage case final geometryImage?) {
-        renderShader
-          ..setFloatUniforms(initialIndex: 2, (value) {
-            value
-              ..setOffset(_geometryMatteBounds.topLeft * devicePixelRatio)
-              ..setSize(_geometryMatteBounds.size * devicePixelRatio);
-          })
-          ..setImageSampler(1, geometryImage);
-        paintLiquidGlass(
-          context,
-          offset,
-          shapesWithGeometry,
-          _paintBounds,
-        );
+        final shader = renderShader;
+        if (shader != null) {
+          shader
+            ..setFloatUniforms(initialIndex: 2, (value) {
+              value
+                ..setOffset(_geometryMatteBounds.topLeft * devicePixelRatio)
+                ..setSize(_geometryMatteBounds.size * devicePixelRatio);
+            })
+            ..setImageSampler(1, geometryImage);
+          paintLiquidGlass(
+            context,
+            offset,
+            shapesWithGeometry,
+            _paintBounds,
+          );
+        } else {
+          paintFakeGlass(
+            context,
+            offset,
+            shapesWithGeometry,
+            _paintBounds,
+          );
+        }
       }
     }
 
@@ -241,6 +262,15 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Subclasses implement the actual glass rendering
   /// (e.g., with backdrop filters)
   void paintLiquidGlass(
+    PaintingContext context,
+    Offset offset,
+    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> shapes,
+    Rect boundingBox,
+  );
+
+  /// Subclasses implement fake glass rendering when shader is not available.
+  /// This uses backdrop filters and canvas painting instead of shaders.
+  void paintFakeGlass(
     PaintingContext context,
     Offset offset,
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> shapes,
@@ -345,6 +375,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
             '\t- Rendered @ ${geometry.bounds}',
           );
           canvas.drawImage(image, Offset.zero, Paint());
+        case PathOnlyGeometryCache():
+          buffer.writeln(
+            '\t- PathOnly @ ${geometry.bounds}',
+          );
+          // PathOnlyGeometryCache has no matte to draw
       }
 
       canvas.restore();

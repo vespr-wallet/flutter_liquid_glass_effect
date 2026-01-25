@@ -157,6 +157,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer>
   }
 
   void _clearAnimationState() {
+    _controller?.stop();
     _fromSettings = null;
     _animatedSettings = null;
   }

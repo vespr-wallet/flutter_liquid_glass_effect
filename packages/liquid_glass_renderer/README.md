@@ -92,19 +92,14 @@ This package provides several widgets to create the glass effect:
 
 ### ⚠️ Limitations
 
-As this is a pre-release, there are a few things to keep in mind:
-
-- **Only works on Impeller**, so Web, Windows, and Linux are entirely unsupported for now
-- **Memory spike when animating shapes** There is a [bug in Flutter](https://github.com/flutter/flutter/issues/138627) that prevents us from disposing generated textures immediately, leading to temporary memory spikes when animating glass shapes. Read [A word on Performance](#-a-word-on-performance) for tips on minimizing this.
-- **Blur** introduces artifacts when blending shapes. Upvote [this issue](https://github.com/flutter/flutter/issues/170820) to get that fixed.
+- **Skia uses an approximation**: On non-Impeller platforms (Skia), a linear transformation approximation is used instead of the custom shader which performs non-linear transformations to achieve the glass-like look. The visual result is similar but not identical.
+- **Shape type transitions are not animated**: Changing between different shape types (e.g., from `LiquidRoundedSuperellipse` to `LiquidOval`) will happen instantly. Only changes within the same shape type (e.g., border radius) are animated.
 
 
 ### 🚨 A word on Performance
 
 The liquid glass effect is computationally intensive, especially on mobile devices. To save GPU cycles, `liquid_glass_plus` will try to cache geometry in textures wherever possible.
 
-#### Memory Usage
-Unfortunately, due to a [Flutter bug](https://github.com/flutter/flutter/issues/138627), we cannot dispose of these textures immediately, which may lead to temporary memory spikes when animating glass shapes. Please upvote the issue to help get it fixed!
 
 #### Best Practices
 To ensure the best performance when using liquid glass effects, consider the following tips:

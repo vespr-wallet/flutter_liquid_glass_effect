@@ -1,3 +1,7 @@
+## 0.3.2
+
+- Fixed android and web compilation bugs in Flutter 3.44
+
 ## 0.3.1+1
 
 - **DOCS**: clarified that Skia is supported using a linear approximation (not unsupported).

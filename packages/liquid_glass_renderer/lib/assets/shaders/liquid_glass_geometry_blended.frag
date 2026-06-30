@@ -8,13 +8,17 @@
 precision mediump float;
 
 #include <flutter/runtime_effect.glsl>
-#include "sdf.glsl"
 #include "displacement_encoding.glsl"
+
+#define MAX_SHAPES 16
 
 layout(location = 0) uniform vec2 uSize;
 layout(location = 1) uniform vec4 uOpticalProps;
 layout(location = 2) uniform float uNumShapes;
 layout(location = 3) uniform float uShapeData[MAX_SHAPES * 6];
+
+// Included after uShapeData so the SDF helpers can read the uniform directly.
+#include "sdf.glsl"
 
 float uThickness = uOpticalProps.z;
 float uRefractiveIndex = uOpticalProps.x;
@@ -31,17 +35,25 @@ void main() {
         vec2 screenUV = vec2(fragCoord.x / uSize.x, fragCoord.y / uSize.y);
     #endif
     
-    float sd = sceneSDF(fragCoord, int(uNumShapes), uShapeData, uBlend);
-    
+    int numShapes = int(uNumShapes);
+    float sd = sceneSDF(fragCoord, numShapes, uBlend);
+
     float foregroundAlpha = 1.0 - smoothstep(-2.0, 0.0, sd);
     if (foregroundAlpha < 0.01) {
         fragColor = vec4(0.0);
         return;
     }
-    
-    float dx = dFdx(sd);
-    float dy = dFdy(sd);
-    
+
+    // Compute the SDF gradient with explicit forward finite differences instead
+    // of hardware derivatives: the Skia (web/SkSL) backend does not implement
+    // dFdx/dFdy. Forward differences reuse the `sd` sample already computed
+    // above, so only two extra sceneSDF evaluations are needed per fragment
+    // (vs four for a central difference). A one-pixel forward step is also what
+    // dFdx/dFdy effectively compute across a 2x2 fragment quad, so Impeller
+    // rendering stays unchanged.
+    float dx = sceneSDF(fragCoord + vec2(1.0, 0.0), numShapes, uBlend) - sd;
+    float dy = sceneSDF(fragCoord + vec2(0.0, 1.0), numShapes, uBlend) - sd;
+
     float n_cos = max(uThickness + sd, 0.0) / uThickness;
     float n_sin = sqrt(max(0.0, 1.0 - n_cos * n_cos));
     

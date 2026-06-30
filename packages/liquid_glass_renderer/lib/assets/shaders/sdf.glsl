@@ -1,6 +1,15 @@
 // Shape array uniforms - 6 floats per shape (type, centerX, centerY, sizeW, sizeH, cornerRadius)
 // Reduced from 64 to 16 shapes to fit Impeller's uniform buffer limit (16 * 6 = 96 floats vs 384)
+//
+// IMPORTANT: Every shader that includes this file must declare a
+// `uniform float uShapeData[MAX_SHAPES * 6];` *before* the include. The SDF
+// helpers below read that global uniform directly instead of taking it as a
+// function parameter on purpose: passing an array by value makes spirv-cross
+// emit an array copy-initializer (`float param[96] = uShapeData;`) which is
+// rejected by SkSL, so the shaders would fail to compile on the Skia (web) backend.
+#ifndef MAX_SHAPES
 #define MAX_SHAPES 16
+#endif
 
 float sdfRRect( in vec2 p, in vec2 b, in float r ) {
     float shortest = min(b.x, b.y);
@@ -60,46 +69,32 @@ float getShapeSDF(float type, vec2 p, vec2 center, vec2 size, float r) {
     return 1e9; // none
 }
 
-float getShapeSDFFromArray(int index, vec2 p, float shapeData[MAX_SHAPES * 6]) {
-    int baseIndex = index * 6;
-    float type = shapeData[baseIndex];
-    vec2 center = vec2(shapeData[baseIndex + 1], shapeData[baseIndex + 2]);
-    vec2 size = vec2(shapeData[baseIndex + 3], shapeData[baseIndex + 4]);
-    float cornerRadius = shapeData[baseIndex + 5];
-    
-    return getShapeSDF(type, p, center, size, cornerRadius);
-}
-
-float sceneSDF(vec2 p, int numShapes, float shapeData[MAX_SHAPES * 6], float blend) {
+float sceneSDF(vec2 p, int numShapes, float blend) {
     if (numShapes == 0) {
         return 1e9;
     }
-    
-    float result = getShapeSDFFromArray(0, p, shapeData);
-    
-    // Optimized: unroll for common cases (1-4 shapes), use loop for 5+ shapes
-    if (numShapes <= 4) {
-        // Fully unrolled for 1-4 shapes (covers 90%+ of use cases)
-        if (numShapes >= 2) {
-            float shapeSDF = getShapeSDFFromArray(1, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
+
+    // SkSL (the Skia/web backend) only accepts array indices that are
+    // compile-time constants or a loop induction variable used *inline*
+    // (e.g. `uShapeData[i * 6 + k]`). It rejects indices laundered through a
+    // local variable or passed as a function parameter, so the per-shape reads
+    // cannot be hoisted into a helper that takes the index. We therefore read
+    // every shape inline inside a single loop that is statically bounded by the
+    // constant MAX_SHAPES and breaks once the real shapes are exhausted.
+    float result = 1e9;
+    for (int i = 0; i < MAX_SHAPES; i++) {
+        if (i >= numShapes) {
+            break;
         }
-        if (numShapes >= 3) {
-            float shapeSDF = getShapeSDFFromArray(2, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-        if (numShapes >= 4) {
-            float shapeSDF = getShapeSDFFromArray(3, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
-    } else {
-        // Dynamic loop for 5+ shapes (uncommon cases)
-        for (int i = 1; i < min(numShapes, MAX_SHAPES); i++) {
-            float shapeSDF = getShapeSDFFromArray(i, p, shapeData);
-            result = smoothUnion(result, shapeSDF, blend);
-        }
+        float type = uShapeData[i * 6];
+        vec2 center = vec2(uShapeData[i * 6 + 1], uShapeData[i * 6 + 2]);
+        vec2 size = vec2(uShapeData[i * 6 + 3], uShapeData[i * 6 + 4]);
+        float cornerRadius = uShapeData[i * 6 + 5];
+
+        float shapeSDF = getShapeSDF(type, p, center, size, cornerRadius);
+        result = (i == 0) ? shapeSDF : smoothUnion(result, shapeSDF, blend);
     }
-    
+
     return result;
 }
 

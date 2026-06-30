@@ -44,15 +44,15 @@ void main() {
         return;
     }
 
-    // Compute the SDF gradient with explicit central finite differences instead
-    // of hardware derivatives. The Skia (web/SkSL) backend does not implement
-    // dFdx/dFdy, so they fail to compile there. A one-pixel central difference
-    // matches the screen-space derivative dFdx/dFdy would produce and renders
-    // identically on the Impeller backend.
-    float dx = (sceneSDF(fragCoord + vec2(1.0, 0.0), numShapes, uBlend)
-              - sceneSDF(fragCoord - vec2(1.0, 0.0), numShapes, uBlend)) * 0.5;
-    float dy = (sceneSDF(fragCoord + vec2(0.0, 1.0), numShapes, uBlend)
-              - sceneSDF(fragCoord - vec2(0.0, 1.0), numShapes, uBlend)) * 0.5;
+    // Compute the SDF gradient with explicit forward finite differences instead
+    // of hardware derivatives: the Skia (web/SkSL) backend does not implement
+    // dFdx/dFdy. Forward differences reuse the `sd` sample already computed
+    // above, so only two extra sceneSDF evaluations are needed per fragment
+    // (vs four for a central difference). A one-pixel forward step is also what
+    // dFdx/dFdy effectively compute across a 2x2 fragment quad, so Impeller
+    // rendering stays unchanged.
+    float dx = sceneSDF(fragCoord + vec2(1.0, 0.0), numShapes, uBlend) - sd;
+    float dy = sceneSDF(fragCoord + vec2(0.0, 1.0), numShapes, uBlend) - sd;
 
     float n_cos = max(uThickness + sd, 0.0) / uThickness;
     float n_sin = sqrt(max(0.0, 1.0 - n_cos * n_cos));
